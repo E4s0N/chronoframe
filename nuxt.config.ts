@@ -11,7 +11,6 @@ export default defineNuxtConfig({
     'reka-ui/nuxt',
     '@nuxt/ui',
     '@nuxt/eslint',
-    '@nuxt/fonts',
     '@nuxt/icon',
     '@nuxt/image',
     '@nuxt/test-utils',
@@ -28,7 +27,9 @@ export default defineNuxtConfig({
   ],
 
   css: ['~/assets/css/tailwind.css'],
-
+  ui: {
+    fonts: false
+  },
   components: [{ path: '~/components/ui', pathPrefix: false }, '~/components'],
 
   runtimeConfig: {

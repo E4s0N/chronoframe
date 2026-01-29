@@ -220,11 +220,155 @@ export class NominatimGeocodingProvider implements GeocodingProvider {
 }
 
 /**
+ * 高德地图地理编码提供者
+ * 适用于中国的地理编码服务，支持中文地址
+ */
+export class AMapGeocodingProvider implements GeocodingProvider {
+  private apiKey: string
+  private readonly convertBaseUrl = 'https://restapi.amap.com/v3/assistant/coordinate/convert'
+  private readonly regeoBaseUrl = 'https://restapi.amap.com/v3/geocode/regeo'
+  private lastRequestTime = 0
+  private readonly rateLimitMs = 100 // 高德地图API限制为每秒100次请求
+
+  constructor(apiKey: string) {
+    this.apiKey = apiKey
+  }
+
+  async reverseGeocode(lat: number, lon: number): Promise<LocationInfo | null> {
+    try {
+      return await withRetry(
+        async () => {
+          // 应用速率限制
+          await this.applyRateLimit()
+
+          // 验证经纬度
+          if (
+            typeof lat !== 'number' ||
+            isNaN(lat) ||
+            typeof lon !== 'number' ||
+            isNaN(lon) ||
+            lat < -90 ||
+            lat > 90 ||
+            lon < -180 ||
+            lon > 180
+          ) {
+            logger.location.warn(`Invalid coordinates provided: ${lat}, ${lon}`)
+            return null
+          }
+
+          // 格式化坐标（小数点后不超过6位）
+          const formatCoordinate = (coord: number): string => {
+            return coord.toFixed(6)
+          }
+
+          // 1. 坐标转换（GPS 转高德坐标）
+          const formattedLongitude = formatCoordinate(lon)
+          const formattedLatitude = formatCoordinate(lat)
+          
+          const convertUrl = new URL(this.convertBaseUrl)
+          convertUrl.searchParams.set('key', this.apiKey)
+          convertUrl.searchParams.set('locations', `${formattedLongitude},${formattedLatitude}`)
+          convertUrl.searchParams.set('coordsys', 'gps')
+
+          logger.location.info(`AMap coordinate conversion URL: ${convertUrl.toString()}`)
+
+          const convertResponse = await fetch(convertUrl.toString())
+          if (!convertResponse.ok) {
+            throw new Error(
+              `AMap coordinate conversion API error: ${convertResponse.status} ${convertResponse.statusText}`,
+            )
+          }
+
+          const convertData = await convertResponse.json()
+          if (convertData.status !== '1' || !convertData.locations) {
+            logger.location.warn(`AMap coordinate conversion failed: ${convertData.info || 'Unknown error'}`)
+            return null
+          }
+
+          const [convertedLongitude, convertedLatitude] = convertData.locations.split(',')
+
+          // 2. 逆地理编码（获取地址）
+          const regeoUrl = new URL(this.regeoBaseUrl)
+          regeoUrl.searchParams.set('key', this.apiKey)
+          regeoUrl.searchParams.set('location', `${convertedLongitude},${convertedLatitude}`)
+
+          logger.location.info(`AMap reverse geocoding URL: ${regeoUrl.toString()}`)
+
+          const regeoResponse = await fetch(regeoUrl.toString())
+          if (!regeoResponse.ok) {
+            throw new Error(
+              `AMap reverse geocoding API error: ${regeoResponse.status} ${regeoResponse.statusText}`,
+            )
+          }
+
+          const regeoData = await regeoResponse.json()
+          if (regeoData.status !== '1' || !regeoData.regeocode) {
+            logger.location.warn(`AMap reverse geocoding failed: ${regeoData.info || 'No regeocode data'}`)
+            return null
+          }
+
+          const { addressComponent, formatted_address } = regeoData.regeocode
+          const { province, city, district } = addressComponent
+
+          // 构建位置名称
+          const locationName = formatted_address
+
+          logger.location.success(
+            `Successfully geocoded location with AMap: ${province}, ${city}`,
+          )
+          return {
+            latitude: lat,
+            longitude: lon,
+            country: '中国', // 高德地图主要覆盖中国区域
+            city: city || district || province, // 优先使用城市，否则使用区县或省份
+            locationName,
+          }
+        },
+        {
+          ...RetryPresets.network,
+          timeout: 15000, // 设置超时时间为15秒
+          delayStrategy: 'exponential', // 指数退避策略
+        },
+        logger.location,
+      )
+    } catch (error) {
+      logger.location.error(
+        'AMap reverse geocoding failed after all retries:',
+        error,
+      )
+      return null
+    }
+  }
+
+  private async applyRateLimit(): Promise<void> {
+    const now = Date.now()
+    const timeSinceLastRequest = now - this.lastRequestTime
+
+    if (timeSinceLastRequest < this.rateLimitMs) {
+      const delay = this.rateLimitMs - timeSinceLastRequest
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
+
+    this.lastRequestTime = Date.now()
+  }
+}
+
+/**
  * 创建地理编码提供者实例
- * @description 优先使用 Mapbox，如果没有配置则回退到 Nominatim
+ * @description 优先使用 AMap（高德地图），如果未配置则使用 Mapbox，最后回退到 Nominatim
  */
 async function createGeocodingProvider(): Promise<GeocodingProvider> {
-  // const mapboxToken = useRuntimeConfig().mapbox?.accessToken
+  // 尝试使用高德地图API密钥
+  const amapApiKey = await settingsManager.get<string>(
+    'location',
+    'amap.apiKey',
+  )
+
+  if (amapApiKey) {
+    return new AMapGeocodingProvider(amapApiKey)
+  }
+
+  // 其次尝试使用 Mapbox
   const mapboxToken = await settingsManager.get<string>(
     'location',
     'mapbox.token',
@@ -234,7 +378,7 @@ async function createGeocodingProvider(): Promise<GeocodingProvider> {
     return new MapboxGeocodingProvider(mapboxToken)
   }
 
-  // 回退到 Nominatim 提供者
+  // 最后回退到 Nominatim 提供者
   return new NominatimGeocodingProvider(
     (await settingsManager.get<string>('location', 'nominatim.baseUrl')) ||
       undefined,

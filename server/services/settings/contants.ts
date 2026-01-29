@@ -129,6 +129,15 @@ export const DEFAULT_SETTINGS = [
     description: 'settings.location.nominatim.baseUrl.description',
     isPublic: true,
   },
+  {
+    namespace: 'location',
+    key: 'amap.apiKey',
+    type: 'string',
+    defaultValue: '',
+    label: 'settings.location.amap.apiKey.label',
+    description: 'settings.location.amap.apiKey.description',
+    isPublic: true,
+  },
   // NAMESPACE: storage
   {
     namespace: 'storage',

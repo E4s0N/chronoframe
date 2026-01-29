@@ -941,6 +941,13 @@
           "description": "Nominatim 反向地理编码 API 的基础 URL",
           "help": "留空则默认使用公共 Nominatim 服务"
         }
+      },
+      "amap": { 
+        "apiKey": {
+          "label": "高德地图 API Key",
+          "description": "高德地图 API Key",
+          "help": "配置后将取代 Nominatim 作为位置信息服务"
+        }
       }
     },
     "storage": {

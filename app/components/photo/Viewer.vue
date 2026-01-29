@@ -35,6 +35,7 @@ const loadingIndicatorRef = ref<LoadingIndicatorRef>()
 const isImageZoomed = ref(false)
 const showExifPanel = ref(false)
 const showShareModal = ref(false)
+const showPrintModal = ref(false)
 const currentBlobSrc = ref<string | null>(null)
 const zoomLevel = ref(0)
 const showZoomLevel = ref(false)
@@ -635,7 +636,13 @@ const swiperModules = [Navigation, Keyboard, Virtual]
                     rounded
                     @click="showExifPanel = !showExifPanel"
                   />
-
+                  <!-- 打印按钮 -->
+                  <GlassButton
+                    icon="tabler:printer"
+                    size="sm"
+                    rounded
+                    @click="showPrintModal = true"
+                  />
                   <!-- 分享按钮 -->
                   <GlassButton
                     icon="tabler:share-3"
