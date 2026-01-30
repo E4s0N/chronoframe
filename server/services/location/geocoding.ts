@@ -6,6 +6,7 @@ export interface LocationInfo {
   longitude: number
   country?: string
   city?: string
+  province?: string  // 新增省份字段
   locationName?: string
 }
 
@@ -85,6 +86,7 @@ export class MapboxGeocodingProvider implements GeocodingProvider {
             longitude: lon,
             country,
             city,
+            province: context.region?.name, // Mapbox也有可能提供region（区域/省）
             locationName,
           }
         },
@@ -187,6 +189,7 @@ export class NominatimGeocodingProvider implements GeocodingProvider {
             longitude: lon,
             country,
             city,
+            province: address.state || address.province, // Nominatim可能提供state或province
             locationName,
           }
         },
@@ -321,6 +324,7 @@ export class AMapGeocodingProvider implements GeocodingProvider {
             longitude: lon,
             country: '中国', // 高德地图主要覆盖中国区域
             city: city || district || province, // 优先使用城市，否则使用区县或省份
+            province, // 高德地图提供省份信息
             locationName,
           }
         },

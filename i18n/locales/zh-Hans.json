@@ -547,7 +547,8 @@
         "refreshLocation": "重新获取城市",
         "delete": "删除",
         "editMetadata": "编辑信息",
-        "previewPhoto": "预览照片"
+        "previewPhoto": "预览照片",
+        "regeneratePrint": "重新生成打印图片"
       },
       "selection": {
         "selected": "{count} / {total} 行已选择",
@@ -600,9 +601,9 @@
         "reprocessTaskId": "任务ID: {taskId}",
         "deleteSuccess": "照片删除成功",
         "batchDeleteSuccess": "已成功删除 {count} 张照片",
-        "batchSelectRequired": "请至少选择一张照片进行此操作",
+        "batchSelectRequired": "至少需要选择一张照片。",
         "noStorageKey": "无法处理：缺少存储信息",
-        "batchNoStorageKey": "{count} 张照片缺少存储信息，无法处理",
+        "batchNoStorageKey": "部分照片（{count}张）缺少存储键，无法处理。",
         "batchNoUrl": "没有可用的下载链接照片",
         "batchPartialUrl": "仅有 {count} 张照片（共 {total} 张）具有可用的下载链接",
         "downloadStarted": "开始下载",
@@ -615,9 +616,9 @@
         "downloadPartialCount": "已下载 {success} 张照片，{failed} 张失败",
         "warning": "警告",
         "error": "发生错误",
-        "deleteFailed": "删除照片失败",
-        "batchDeleteFailed": "批量删除失败",
-        "batchReprocessFailed": "批量重新处理失败",
+        "deleteFailed": "照片删除失败",
+        "batchDeleteFailed": "部分照片删除失败。",
+        "batchReprocessFailed": "部分照片重处理失败。",
         "reprocessFailed": "重新处理失败",
         "livePhotoNotFound": "不是 Live Photo",
         "livePhotoLoadError": "无法获取 Live Photo 信息",
@@ -628,7 +629,12 @@
         "noChangesProvided": "没有可应用的修改",
         "queueUnavailable": "任务队列不可用",
         "reverseGeocodeQueued": "已加入重新获取城市任务",
-        "reverseGeocodeFailed": "重新获取城市任务添加失败"
+        "reverseGeocodeFailed": "重新获取城市任务添加失败",
+        "printGenerationRequested": "打印图片重新生成请求已提交",
+        "printGenerationStarting": "开始生成打印图片任务...",
+        "printGenerationSuccess": "打印图片生成任务已添加",
+        "printGenerationTaskId": "任务ID: {taskId}",
+        "printGenerationFailed": "重新生成打印图片失败"
       },
       "errors": {
         "noSelection": "请选择要上传的照片",
@@ -671,10 +677,23 @@
           "locationHint": "点击地图选择或更新拍摄位置。",
           "clearLocation": "清除位置",
           "coordinates": "坐标",
+          "coordinatePlaceholder": "以“纬度,经度”格式输入坐标 (例如 25.655957,119.771264)",
           "noLocation": "未选择位置",
           "rating": "评分",
           "ratingHint": "点击星星为照片设置评分（0-5 星）。",
-          "noRating": "未评分"
+          "noRating": "未评分",
+          "country": "国家",
+          "countryPlaceholder": "默认：中国",
+          "province": "省份",
+          "provincePlaceholder": "输入省份",
+          "city": "城市",
+          "cityPlaceholder": "输入城市",
+          "locationName": "详细地址",
+          "locationNamePlaceholder": "输入详细地址",
+          "latitude": "纬度",
+          "latitudePlaceholder": "输入纬度 (-90 到 90)",
+          "longitude": "经度",
+          "longitudePlaceholder": "输入经度 (-180 到 180)"
         },
         "actions": {
           "cancel": "取消",
@@ -854,7 +873,8 @@
         "thumbnail": "缩略图",
         "exif": "EXIF处理",
         "reverse-geocoding": "地理解析",
-        "live-photo": "LivePhoto处理"
+        "live-photo": "LivePhoto处理",
+        "print-generation": "打印照片生成"
       },
       "buttons": {
         "retry": "重试",

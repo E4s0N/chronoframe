@@ -57,6 +57,7 @@ export const photos = sqliteTable('photos', {
   longitude: real('longitude'),
   country: text('country'),
   city: text('city'),
+  province: text('province'),  // 新增省份字段
   locationName: text('location_name'),
   // LivePhoto 相关字段
   isLivePhoto: integer('is_live_photo').default(0).notNull(),

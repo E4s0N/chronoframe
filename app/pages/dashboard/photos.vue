@@ -138,18 +138,30 @@ const originalMetadata = ref<{
   description: string
   tags: string[]
   location: { latitude: number; longitude: number } | null
+  country: string | null
+  province: string | null
+  city: string | null
+  locationName: string | null
   rating: number | null
 }>({
   title: '',
   description: '',
   tags: [],
   location: null,
+  country: null,
+  province: null,
+  city: null,
+  locationName: null,
   rating: null,
 })
 
 const locationSelection = ref<{ latitude: number; longitude: number } | null>(
   null,
 )
+const countrySelection = ref<string | null>(null)
+const provinceSelection = ref<string | null>(null)
+const citySelection = ref<string | null>(null)
+const locationNameSelection = ref<string | null>(null)
 const locationTouched = ref(false)
 
 const normalizeTagList = (tags: string[]): string[] => {
@@ -221,12 +233,38 @@ const ratingChanged = computed(
   () => editFormState.rating !== originalMetadata.value.rating,
 )
 
+const areLocationValuesEqual = (a: any, b: any): boolean => {
+  if (a === null && b === null) return true
+  if (a === null || b === null) return false
+  return a === b
+}
+
+const countryChanged = computed(() => {
+  return !areLocationValuesEqual(countrySelection.value, originalMetadata.value.country)
+})
+
+const provinceChanged = computed(() => {
+  return !areLocationValuesEqual(provinceSelection.value, originalMetadata.value.province)
+})
+
+const cityChanged = computed(() => {
+  return !areLocationValuesEqual(citySelection.value, originalMetadata.value.city)
+})
+
+const locationNameChanged = computed(() => {
+  return !areLocationValuesEqual(locationNameSelection.value, originalMetadata.value.locationName)
+})
+
 const isMetadataDirty = computed(
   () =>
     titleChanged.value ||
     descriptionChanged.value ||
     tagsChanged.value ||
     locationChanged.value ||
+    countryChanged.value ||
+    provinceChanged.value ||
+    cityChanged.value ||
+    locationNameChanged.value ||
     ratingChanged.value,
 )
 
@@ -239,6 +277,41 @@ const formattedCoordinates = computed(() => {
     longitude: locationSelection.value.longitude.toFixed(6),
   }
 })
+
+const formattedCoordinateString = computed(() => {
+  if (locationSelection.value && 
+      typeof locationSelection.value.latitude === 'number' && 
+      typeof locationSelection.value.longitude === 'number') {
+    return `${locationSelection.value.latitude},${locationSelection.value.longitude}`
+  }
+  return ''
+})
+
+const handleCoordinateInput = (input: string) => {
+  if (!input) {
+    clearSelectedLocation()
+    return
+  }
+
+  // 解析输入的坐标，期望格式为 "lat,lng"
+  const coords = input.split(',')
+  if (coords.length === 2) {
+    const lat = parseFloat(coords[0].trim())
+    const lng = parseFloat(coords[1].trim())
+
+    // 验证坐标范围
+    if (!isNaN(lat) && !isNaN(lng) && 
+        lat >= -90 && lat <= 90 && 
+        lng >= -180 && lng <= 180) {
+      
+      locationSelection.value = {
+        latitude: lat,
+        longitude: lng
+      }
+      locationTouched.value = true
+    }
+  }
+}
 
 const uploadImage = async (file: File, existingFileId?: string) => {
   const fileName = file.name
@@ -459,6 +532,10 @@ watch(isEditModalOpen, (open) => {
       description: '',
       tags: [],
       location: null,
+      country: null,
+      province: null,
+      city: null,
+      locationName: null,
       rating: null,
     }
     locationSelection.value = null
@@ -843,7 +920,7 @@ const columns: TableColumn<Photo>[] = [
     accessorKey: 'location',
     header: $t('dashboard.photos.table.columns.location'),
     cell: ({ row }) => {
-      const { exif, city, country } = row.original
+      const { exif, city, country, province } = row.original
 
       if (!exif?.GPSLongitude && !exif?.GPSLatitude) {
         return h(
@@ -853,7 +930,14 @@ const columns: TableColumn<Photo>[] = [
         )
       }
 
-      const location = [city, country].filter(Boolean).join(', ')
+      // 构建位置字符串，格式为 国家,省份,城市
+      const locationParts = []
+      if (country) locationParts.push(country)
+      if (province) locationParts.push(province)
+      if (city) locationParts.push(city)
+      
+      const location = locationParts.length > 0 ? locationParts.join(', ') : null
+      
       return h(
         'span',
         {
@@ -1149,13 +1233,25 @@ const openMetadataEditor = (photo: Photo) => {
     description: initialDescription,
     tags: [...initialTags],
     location: initialLocation ? { ...initialLocation } : null,
+    country: photo.country || null,
+    province: photo.province || null,
+    city: photo.city || null,
+    locationName: photo.locationName || null,
     rating: typeof photo.exif?.Rating === 'number' ? photo.exif.Rating : null,
   }
 
   locationSelection.value = initialLocation ? { ...initialLocation } : null
+  countrySelection.value = photo.country || null
+  provinceSelection.value = photo.province || null
+  citySelection.value = photo.city || null
+  locationNameSelection.value = photo.locationName || null
   locationTouched.value = false
-
   isEditModalOpen.value = true
+}
+
+const handleManualCoordinateChange = () => {
+  // 当手动输入坐标时，触发位置变更检测
+  locationTouched.value = true
 }
 
 const handleLocationPick = () => {
@@ -1179,6 +1275,10 @@ const saveMetadataChanges = async () => {
       description?: string
       tags?: string[]
       location?: { latitude: number; longitude: number } | null
+      country?: string | null
+      province?: string | null
+      city?: string | null
+      locationName?: string | null
       rating?: number | null
     } = {}
 
@@ -1201,6 +1301,22 @@ const saveMetadataChanges = async () => {
             longitude: locationSelection.value.longitude,
           }
         : null
+    }
+
+    if (countryChanged.value) {
+      payload.country = countrySelection.value
+    }
+
+    if (provinceChanged.value) {
+      payload.province = provinceSelection.value
+    }
+
+    if (cityChanged.value) {
+      payload.city = citySelection.value
+    }
+
+    if (locationNameChanged.value) {
+      payload.locationName = locationNameSelection.value
     }
 
     if (ratingChanged.value) {
@@ -1400,6 +1516,13 @@ const getRowActions = (photo: Photo) => {
         icon: 'tabler:photo',
         onSelect() {
           openImagePreview(photo)
+        },
+      },
+      {
+        label: $t('dashboard.photos.actions.regeneratePrint'),
+        icon: 'tabler:paint',
+        onSelect() {
+          handleRegeneratePrint(photo)
         },
       },
     ],
@@ -1752,6 +1875,63 @@ onUnmounted(() => {
   })
   statusIntervals.value.clear()
 })
+
+// 添加重新生成打印图片功能
+const handleRegeneratePrint = async (photo: Photo) => {
+  try {
+    if (!photo || !photo.storageKey) {
+      toast.add({
+        title: $t('dashboard.photos.messages.error'),
+        description: $t('dashboard.photos.messages.noStorageKey'),
+        color: 'error',
+      })
+      return
+    }
+
+    const printGenToast = toast.add({
+      title: $t('dashboard.photos.messages.printGenerationRequested'),
+      description: $t('dashboard.photos.messages.printGenerationStarting'),
+      color: 'info',
+    })
+
+    const result = await $fetch('/api/queue/add-task', {
+      method: 'POST',
+      body: {
+        payload: {
+          type: 'print-photo',
+          storageKey: photo.storageKey,
+          locationName: photo.locationName || '',
+        },
+        priority: 2, // 设置较高优先级
+        maxAttempts: 3,
+      },
+    })
+
+    if (result.success) {
+      toast.update(printGenToast.id, {
+        title: $t('dashboard.photos.messages.printGenerationSuccess'),
+        description: $t('dashboard.photos.messages.printGenerationTaskId', {
+          taskId: result.taskId,
+        }),
+        color: 'success',
+      })
+    } else {
+      toast.update(printGenToast.id, {
+        title: $t('dashboard.photos.messages.error'),
+        description: $t('dashboard.photos.messages.taskSubmitFailed'),
+        color: 'error',
+      })
+    }
+  } catch (error: any) {
+    console.error('重新生成打印图片失败:', error)
+    toast.add({
+      title: $t('dashboard.photos.messages.printGenerationFailed'),
+      description: error.message || $t('dashboard.photos.messages.error'),
+      color: 'error',
+    })
+  }
+}
+
 </script>
 
 <template>
@@ -2241,7 +2421,7 @@ onUnmounted(() => {
 
         <UModal v-model:open="isEditModalOpen">
           <template #content>
-            <div class="p-6 space-y-6">
+            <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
               <div class="space-y-1">
                 <h2
                   class="text-lg font-semibold text-neutral-800 dark:text-neutral-100"
@@ -2367,23 +2547,68 @@ onUnmounted(() => {
                     </template>
                   </MapLocationPicker>
 
-                  <div
-                    class="text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-2"
+                  <!-- 坐标输入框 -->
+                  <UFormField
+                    :label="$t('dashboard.photos.editModal.fields.coordinates')"
+                    name="coordinates"
                   >
-                    <span
-                      >{{
-                        $t('dashboard.photos.editModal.fields.coordinates')
-                      }}:</span
-                    >
-                    <span v-if="formattedCoordinates">
-                      {{ formattedCoordinates.latitude }},
-                      {{ formattedCoordinates.longitude }}
-                    </span>
-                    <span v-else>
-                      {{ $t('dashboard.photos.editModal.fields.noLocation') }}
-                    </span>
-                  </div>
+                    <UInput
+                      :model-value="formattedCoordinateString"
+                      @update:model-value="handleCoordinateInput"
+                      :placeholder="$t('dashboard.photos.editModal.fields.coordinatePlaceholder')"
+                      class="w-full"
+                    />
+                  </UFormField>
                 </div>
+
+                <!-- 国家输入框 -->
+                <UFormField
+                  :label="$t('dashboard.photos.editModal.fields.country')"
+                  name="country"
+                >
+                  <UInput
+                    v-model="countrySelection"
+                    :placeholder="$t('dashboard.photos.editModal.fields.countryPlaceholder')"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <!-- 省份输入框 -->
+                <UFormField
+                  :label="$t('dashboard.photos.editModal.fields.province')"
+                  name="province"
+                >
+                  <UInput
+                    v-model="provinceSelection"
+                    :placeholder="$t('dashboard.photos.editModal.fields.provincePlaceholder')"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <!-- 城市输入框 -->
+                <UFormField
+                  :label="$t('dashboard.photos.editModal.fields.city')"
+                  name="city"
+                >
+                  <UInput
+                    v-model="citySelection"
+                    :placeholder="$t('dashboard.photos.editModal.fields.cityPlaceholder')"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <!-- 详细地址输入框 -->
+                <UFormField
+                  :label="$t('dashboard.photos.editModal.fields.locationName')"
+                  name="locationName"
+                >
+                  <UTextarea
+                    v-model="locationNameSelection"
+                    :placeholder="$t('dashboard.photos.editModal.fields.locationNamePlaceholder')"
+                    :rows="2"
+                    class="w-full"
+                  />
+                </UFormField>
 
                 <div
                   class="flex items-center justify-end gap-2 pt-4 border-t border-neutral-200 dark:border-neutral-800"

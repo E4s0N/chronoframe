@@ -404,6 +404,7 @@ export class QueueManager {
             longitude: coordinates?.longitude || null,
             country: locationInfo?.country || null,
             city: locationInfo?.city || null,
+            province: locationInfo?.province || null,  // 添加省份信息
             locationName: locationInfo?.locationName || null,
             // LivePhoto 相关字段
             isLivePhoto:
@@ -424,6 +425,15 @@ export class QueueManager {
           await db.insert(tables.photos).values(result).onConflictDoUpdate({
             target: tables.photos.id,
             set: result,
+          })
+
+          // STEP 8: Generate print photo with watermark
+          await this.updateTaskStage(taskId, 'print-generation')
+          this.logger.info(`[${taskId}:in-stage] generating print photo`)
+          await processPrintPhoto({
+            storageKey: storageKey,
+            locationName: locationInfo?.locationName || '',
+            logger: this.logger,
           })
 
           this.logger.success(`Task ${taskId} processed successfully`)
@@ -496,6 +506,7 @@ export class QueueManager {
                 longitude: null,
                 country: null,
                 city: null,
+                province: null,  // 添加省份信息
                 locationName: null,
               })
               .where(eq(tables.photos.id, photoId))
@@ -518,6 +529,7 @@ export class QueueManager {
               longitude: longitude!,
               country: locationInfo.country ?? null,
               city: locationInfo.city ?? null,
+              province: locationInfo.province ?? null,  // 添加省份信息
               locationName: locationInfo.locationName ?? null,
             })
             .where(eq(tables.photos.id, photoId))

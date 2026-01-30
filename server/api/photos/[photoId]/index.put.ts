@@ -26,6 +26,10 @@ const bodySchema = z.object({
       z.null(),
     ])
     .optional(),
+  country: z.string().max(128).optional().nullable(),
+  province: z.string().max(128).optional().nullable(),
+  city: z.string().max(128).optional().nullable(),
+  locationName: z.string().max(512).optional().nullable(),
   rating: z.union([z.number().int().min(0).max(5), z.null()]).optional(),
 })
 
@@ -56,6 +60,10 @@ export default eventHandler(async (event) => {
     payload.description === undefined &&
     payload.tags === undefined &&
     payload.location === undefined &&
+    payload.country === undefined &&
+    payload.province === undefined &&
+    payload.city === undefined &&
+    payload.locationName === undefined &&
     payload.rating === undefined
   ) {
     throw createError({
@@ -201,6 +209,7 @@ export default eventHandler(async (event) => {
         updateData.longitude = payload.location.longitude
         updateData.country = null
         updateData.city = null
+        updateData.province = null
         updateData.locationName = null
         pendingReverseGeocode = {
           latitude: payload.location.latitude,
@@ -211,8 +220,26 @@ export default eventHandler(async (event) => {
         updateData.longitude = null
         updateData.country = null
         updateData.city = null
+        updateData.province = null
         updateData.locationName = null
       }
+    }
+
+    // 处理国家、省份、城市和详细地址字段
+    if (payload.country !== undefined) {
+      updateData.country = payload.country
+    }
+    
+    if (payload.province !== undefined) {
+      updateData.province = payload.province
+    }
+    
+    if (payload.city !== undefined) {
+      updateData.city = payload.city
+    }
+    
+    if (payload.locationName !== undefined) {
+      updateData.locationName = payload.locationName
     }
 
     await db
