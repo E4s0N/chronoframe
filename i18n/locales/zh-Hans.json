@@ -113,6 +113,12 @@
       },
       "backtotop": {
         "tooltip": "回到顶部"
+      },
+      "print": {
+        "title": "打印预览",
+        "actions": {
+          "downloadPrintImage": "下载水印图片"
+        }
       }
     },
     "stats": {
@@ -839,7 +845,8 @@
       "types": {
         "photo": "照片处理",
         "live-photo-video": "LivePhoto视频",
-        "photo-reverse-geocoding": "照片逆地理编码"
+        "photo-reverse-geocoding": "照片逆地理编码",
+        "print-photo": "打印照片"
       },
       "stages": {
         "preprocessing": "预处理",
@@ -942,7 +949,7 @@
           "help": "留空则默认使用公共 Nominatim 服务"
         }
       },
-      "amap": { 
+      "amap": {
         "apiKey": {
           "label": "高德地图 API Key",
           "description": "高德地图 API Key",
@@ -1071,10 +1078,18 @@
   },
   "wizard": {
     "admin": {
-      "username": { "label": "用户名" },
-      "email": { "label": "电子邮箱" },
-      "password": { "label": "密码" },
-      "confirmPassword": { "label": "确认密码" }
+      "username": {
+        "label": "用户名"
+      },
+      "email": {
+        "label": "电子邮箱"
+      },
+      "password": {
+        "label": "密码"
+      },
+      "confirmPassword": {
+        "label": "确认密码"
+      }
     },
     "map": {
       "provider": {

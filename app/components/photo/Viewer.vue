@@ -986,6 +986,14 @@ const swiperModules = [Navigation, Keyboard, Virtual]
       :photo="currentPhoto"
       @close="showShareModal = false"
     />
+
+    <!-- Print Modal -->
+    <PhotoPrintModal
+      v-if="currentPhoto"
+      :is-open="showPrintModal"
+      :photo="currentPhoto"
+      @close="showPrintModal = false"
+    />
   </Teleport>
 </template>
 

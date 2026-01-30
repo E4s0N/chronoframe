@@ -17,9 +17,10 @@ import {
   extractLocationFromGPS,
   parseGPSCoordinates,
 } from '../location/geocoding'
-import { findLivePhotoVideoForImage } from '../video/livephoto'
 import { processMotionPhotoFromXmp } from '../video/motion-photo'
+import { findLivePhotoVideoForImage } from '../video/livephoto'
 import { getStorageManager } from '~~/server/plugins/3.storage'
+import { processPrintPhoto } from '../image/print-processor'
 
 export class QueueManager {
   private static instances: Map<string, QueueManager> = new Map()
@@ -532,6 +533,31 @@ export class QueueManager {
           throw error
         }
       },
+      printPhoto: async (task: PipelineQueueItem) => {
+        const { id: taskId, payload } = task
+        if (payload.type !== 'print-photo') {
+          throw new Error(
+            `Invalid payload type for print photo task: ${payload.type}`,
+          )
+        }
+        const { storageKey, locationName } = payload
+
+        try {
+          this.logger.info(`Start processing print photo task ${taskId}: ${storageKey}`)
+          
+          // 调用独立的打印图片处理函数
+          await processPrintPhoto({
+            storageKey,
+            locationName,
+            logger: this.logger
+          })
+
+          this.logger.success(`Print photo task ${taskId} completed: ${storageKey}`)
+        } catch (error) {
+          this.logger.error(`Print photo task ${taskId} failed: ${error}`)
+          throw error
+        }
+      },
       livePhotoDetect: async (task: PipelineQueueItem) => {
         const db = useDB()
         const storageProvider = getStorageManager().getProvider()
@@ -657,6 +683,9 @@ export class QueueManager {
             break
           case 'photo-reverse-geocoding':
             await this.processors.reverseGeocoding(task)
+            break
+          case 'print-photo':
+            await this.processors.printPhoto(task)
             break
           default:
             throw new Error(`Unknown task type: ${type}`)

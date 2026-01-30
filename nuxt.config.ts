@@ -39,9 +39,9 @@ export default defineNuxtConfig({
         accessToken: '',
       },
       app: {
-        title: 'ChronoFrame',
-        slogan: '',
-        author: '',
+        title: "TK's Photo Gallery",
+        slogan: 'Mems rest within the lens.',
+        author: 'TK',
         avatarUrl: '',
       },
       map: {
