@@ -11,7 +11,7 @@ const router = useRouter()
 const { switchToIndex, closeViewer, openViewer } = useViewerState()
 const { isViewerOpen } = storeToRefs(useViewerState())
 
-const { photos } = usePhotos()
+const { photos, refresh } = usePhotos()
 
 const slug = computed(() => (route.params.slug as string[]) || [])
 const photoId = computed(() => slug.value[0] || null)
@@ -76,6 +76,13 @@ watch(
   },
   { immediate: true },
 )
+
+// 当路由激活时（例如从dashboard返回主页），刷新照片列表
+onActivated(() => {
+  if (!photoId.value) {
+    refresh()
+  }
+})
 </script>
 
 <template>

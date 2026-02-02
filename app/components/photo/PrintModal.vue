@@ -279,14 +279,14 @@ defineShortcuts({
               </div>
 
               <!-- Info -->
-              <div class="text-xs text-neutral-600 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/50 p-3 rounded-lg">
+              <!-- <div class="text-xs text-neutral-600 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/50 p-3 rounded-lg">
                 <p>{{ $t('ui.action.print.info.description') }}</p>
                 <ul class="mt-1 space-y-1 list-disc pl-4">
                   <li>{{ $t('ui.action.print.info.features.watermark') }}</li>
                   <li>{{ $t('ui.action.print.info.features.optimizedRatio') }}</li>
                   <li>{{ $t('ui.action.print.info.features.exifData') }}</li>
                 </ul>
-              </div>
+              </div> -->
             </div>
           </div>
         </motion.div>

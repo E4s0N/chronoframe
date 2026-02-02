@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { Album, Photo } from '~~/server/utils/db'
+import type { DbAlbum, DbPhoto } from '~~/server/utils/db'
 import type { FormSubmitEvent, FormError } from '@nuxt/ui'
 
 definePageMeta({
@@ -10,10 +10,10 @@ useHead({
   title: $t('title.albums'),
 })
 
-interface AlbumItem extends Album {
+interface AlbumItem extends DbAlbum {
   photoCount?: number
   photoIds?: string[]
-  coverPhoto?: Photo | null
+  coverPhoto?: DbPhoto | null
 }
 
 interface AlbumFormState {
@@ -23,7 +23,7 @@ interface AlbumFormState {
 
 const albums = ref<AlbumItem[]>([])
 const isLoadingAlbums = ref(false)
-const allPhotos = ref<Photo[]>([])
+const allPhotos = ref<DbPhoto[]>([])
 const isLoadingPhotos = ref(false)
 
 const isAlbumSlideoverOpen = ref(false)
@@ -113,7 +113,7 @@ const openEditSlideover = async (album: AlbumItem) => {
     const albumDetail = (await $fetch(`/api/albums/${album.id}`)) as any
     formData.title = album.title
     formData.description = album.description || ''
-    selectedPhotoIds.value = (albumDetail.photos || []).map((p: Photo) => p.id)
+    selectedPhotoIds.value = (albumDetail.photos || []).map((p: DbPhoto) => p.id)
     coverPhotoId.value = album.coverPhotoId || ''
     formRef.value?.clear()
   } catch (error) {

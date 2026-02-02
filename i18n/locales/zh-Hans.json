@@ -121,6 +121,12 @@
         "title": "打印预览",
         "actions": {
           "downloadPrintImage": "下载水印图片"
+        },
+        "success": {
+          "printImageDownloaded": "打印图片下载成功"
+        },
+        "error": {
+          "printImageDownloadFailed": "打印图片下载失败"
         }
       }
     },

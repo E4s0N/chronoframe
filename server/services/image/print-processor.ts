@@ -2,7 +2,7 @@ import path from 'node:path'
 import { promises as fs } from 'node:fs'
 import sharp from 'sharp'
 import qrcode from 'qrcode'
-import type { Logger } from '../../utils/logger'
+import type { Logger } from '~~/server/utils/logger'
 import { extractExifData, extractPhotoInfo } from './exif'
 import { getStorageManager } from '~~/server/plugins/3.storage'
 
@@ -13,10 +13,10 @@ export interface PrintPhotoParams {
 }
 
 export async function processPrintPhoto(params: PrintPhotoParams): Promise<void> {
-  const { storageKey, locationName, logger } = params
+  const { storageKey, locationName, logger = {} as Logger } = params
   const storageProvider = getStorageManager().getProvider()
 
-  logger?.info(`Start processing print photo: ${storageKey}`)
+  logger.image?.info(`Start processing print photo: ${storageKey}`)
 
   try {
     // 获取原始图片
@@ -26,12 +26,12 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
     }
 
     // 先从原始图片中提取EXIF数据，避免在格式转换时丢失
-    logger?.info('Extracting EXIF data from original image...')
-    const exifData = await extractExifData(originalBuffer, originalBuffer, logger)
+    logger.image?.info('Extracting EXIF data from original image...')
+    const exifData = await extractExifData(originalBuffer, originalBuffer, logger.image)
     const photoInfo = extractPhotoInfo(storageKey, exifData)
 
     // 然后再将图片转换为JPEG格式进行处理
-    logger?.info('Converting image to JPEG format for compatibility...')
+    logger.image?.info('Converting image to JPEG format for compatibility...')
     const jpegBuffer = await sharp(originalBuffer)
       .jpeg({ quality: 90, progressive: true, exif: true }) // 添加exif: true选项保留EXIF数据
       .toBuffer()
@@ -53,7 +53,7 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
 
     // 根据图片方向处理
     if (isPortrait) {
-      logger?.info('Rotating portrait image...')
+      logger.image?.info('Rotating portrait image...')
       // 竖排图片：逆时针旋转90度
       const rotatedBuffer = await processedImage
         .rotate(-90)
@@ -74,7 +74,7 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
 
     // 如果当前比例不是3:2，裁剪图片使其成为3:2
     if (Math.abs(currentRatio - targetPrintRatio) > 0.001) {
-      logger?.info(`Original image ratio (${currentRatio.toFixed(2)}:1) is not 3:2, cropping...`)
+      logger.image?.info(`Original image ratio (${currentRatio.toFixed(2)}:1) is not 3:2, cropping...`)
       
       if (currentRatio > targetPrintRatio) {
         // 当前图片更宽，需要裁剪宽度
@@ -125,7 +125,7 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
       const maxImageHeight = Math.floor(width * 3 / 4) - minWatermarkHeight
       
       if (maxImageHeight > 0 && maxImageHeight < height) {
-        logger?.info(`Adjusting image height for watermark...`)
+        logger.image?.info(`Adjusting image height for watermark...`)
         const topOffset = Math.round((height - maxImageHeight) / 2)
         
         const adjustedBuffer = await processedImage
@@ -148,7 +148,7 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
     const finalWatermarkHeight = finalTargetHeight - height
 
     // 提取图片的主体颜色（使用克隆的sharp实例，避免影响原图）
-    logger?.info('Extracting dominant color from image...')
+    logger.image?.info('Extracting dominant color from image...')
     const colorStats = await processedImage.clone() // 克隆实例避免影响原图
       .resize(100) // 缩小图片以提高处理速度
       .stats()
@@ -159,7 +159,7 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
       g: Math.round(colorStats.channels[1].mean),
       b: Math.round(colorStats.channels[2].mean)
     }
-    logger?.info(`Extracted dominant color: rgb(${dominantColor.r}, ${dominantColor.g}, ${dominantColor.b})`)
+    logger.image?.info(`Extracted dominant color: rgb(${dominantColor.r}, ${dominantColor.g}, ${dominantColor.b})`)
     
     // 计算颜色的相对亮度，判断使用白色还是黑色文字
     // 根据WCAG标准，相对亮度 > 0.5 时使用黑色文字，否则使用白色文字
@@ -173,9 +173,9 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
     // 选择前景色：亮度 > 0.5 使用黑色，否则使用白色
     const foregroundColor = relativeLuminance > 0.5 ? 'black' : 'white'
     const foregroundColorHex = foregroundColor === 'black' ? '#000000' : '#ffffff'
-    logger?.info(`Selected foreground color: ${foregroundColor} (relative luminance: ${relativeLuminance.toFixed(3)})`)
+    logger.image?.info(`Selected foreground color: ${foregroundColor} (relative luminance: ${relativeLuminance.toFixed(3)})`)
 
-    logger?.info(`Creating watermark background (${width}x${finalWatermarkHeight})...`)
+    logger.image?.info(`Creating watermark background (${width}x${finalWatermarkHeight})...`)
     // 创建水印条背景，使用主体颜色
     const watermarkBackground = await sharp({
       create: {
@@ -189,12 +189,12 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
     .toBuffer()
 
     // 获取处理后的图片缓冲区
-    logger?.info('Getting processed image buffer...')
+    logger.image?.info('Getting processed image buffer...')
     const processedImageBuffer = await processedImage
       .jpeg({ quality: 90 })
       .toBuffer()
 
-    logger?.info('Combining image and watermark...')
+    logger.image?.info('Combining image and watermark...')
     // 合并原始图片和水印条背景
     const combinedImage = await sharp(processedImageBuffer)
       // 扩展画布高度以容纳水印条
@@ -214,7 +214,8 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
       .toBuffer()
 
     // 准备水印文本
-    const dateTaken = photoInfo.dateTaken ? new Date(photoInfo.dateTaken).toLocaleString() : ''
+    // 格式化日期为 YYYY-MM-DD HH:mm:ss
+    const dateTaken = photoInfo.dateTaken ? new Date(photoInfo.dateTaken).toISOString().replace('T', ' ').substring(0, 19) : ''
     const photographer = 'TK' // 默认摄影师
     const cameraModel = exifData?.Model || ''
     
@@ -226,10 +227,10 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
 
     // 计算动态字体大小，保持与水印条高度的固定比例（约为水印条高度的1/4）
     const fontSize = Math.max(8, Math.round(finalWatermarkHeight / 4))
-    logger?.info(`Calculated dynamic font size: ${fontSize}px (based on watermark height: ${finalWatermarkHeight}px)`)
+    logger.image?.info(`Calculated dynamic font size: ${fontSize}px (based on watermark height: ${finalWatermarkHeight}px)`)
     
     // 生成二维码
-    logger?.info('Generating QR code...')
+    logger.image?.info('Generating QR code...')
     
     // 从存储键中提取文件名（不带扩展名）
     const fileName = path.basename(storageKey, path.extname(storageKey))
@@ -237,14 +238,14 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
     // 获取网站前缀（从环境变量或默认值）
     const runtimeConfig = useRuntimeConfig()
     const sitePrefix = runtimeConfig.SITE_URL || 'https://gallery.drtk.cn'
-    logger?.info(`Using site prefix for QR code: ${sitePrefix}`)
+    logger.image?.info(`Using site prefix for QR code: ${sitePrefix}`)
     
     // 生成二维码内容：网站前缀 + 文件名（不带扩展名）
     const qrCodeContent = `${sitePrefix}/${fileName}`
-    logger?.info(`QR code content: ${qrCodeContent}`)
+    logger.image?.info(`QR code content: ${qrCodeContent}`)
     
-    // 生成二维码图片，根据前景色选择二维码颜色
-    const qrCodeSize = finalWatermarkHeight - 20 // 二维码大小不超过水印条高度减边距
+    // 二维码大小不超过水印条高度减边距
+    const qrCodeSize = finalWatermarkHeight - 20
     const qrCodeBuffer = await qrcode.toBuffer(qrCodeContent, {
       width: qrCodeSize,
       margin: 2,
@@ -258,8 +259,11 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
     const qrCodeX = Math.round((width - qrCodeSize) / 2)
     const qrCodeY = height + Math.round((finalWatermarkHeight - qrCodeSize) / 2)
     
+    // 计算边距（增加边距，使其与上边距一致）
+    const margin = Math.round(fontSize * 0.8) // 增加边距，使用字体大小的倍数计算
+    
     // 创建带有文本水印和二维码的最终图片，使用动态字体大小
-    let finalImage = await sharp(combinedImage)
+    let finalImageWithoutExif = await sharp(combinedImage)
       .composite([
         // 二维码（放在中间）
         { 
@@ -270,71 +274,141 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
         },
         // 左上角：拍摄时间（根据背景色自动选择文字颜色）
         { 
-          input: Buffer.from(`<svg width=\"${width}\" height=\"${finalTargetHeight}\">\n            <text x=\"10\" y=\"${height + finalWatermarkHeight / 2 - fontSize / 3}\" font-family=\"Arial\" font-size=\"${fontSize}\" fill=\"${foregroundColor}\" stroke=\"${foregroundColor === 'white' ? 'black' : 'white'}\" stroke-width=\"1\" paint-order=\"stroke fill\">${dateTaken}</text>\n          </svg>`), 
+          input: Buffer.from(`<svg width=\"${width}\" height=\"${finalTargetHeight}\">\n            <text x=\"${margin}\" y=\"${height + margin + fontSize}\" font-family=\"Arial\" font-size=\"${fontSize}\" fill=\"${foregroundColor}\" stroke=\"${foregroundColor === 'white' ? 'black' : 'white'}\" stroke-width=\"1\" paint-order=\"stroke fill\">${dateTaken}</text>\n          </svg>`), 
           top: 0, 
           left: 0, 
           blend: 'over' 
         },
         // 右上角：拍摄地点（根据背景色自动选择文字颜色）
         { 
-          input: Buffer.from(`<svg width=\"${width}\" height=\"${finalTargetHeight}\">\n            <text x=\"${width - 10}\" y=\"${height + finalWatermarkHeight / 2 - fontSize / 3}\" font-family=\"Arial\" font-size=\"${fontSize}\" fill=\"${foregroundColor}\" stroke=\"${foregroundColor === 'white' ? 'black' : 'white'}\" stroke-width=\"1\" paint-order=\"stroke fill\" text-anchor=\"end\">${locationName}</text>\n          </svg>`), 
+          input: Buffer.from(`<svg width=\"${width}\" height=\"${finalTargetHeight}\">\n            <text x=\"${width - margin}\" y=\"${height + margin + fontSize}\" font-family=\"Arial\" font-size=\"${fontSize}\" fill=\"${foregroundColor}\" stroke=\"${foregroundColor === 'white' ? 'black' : 'white'}\" stroke-width=\"1\" paint-order=\"stroke fill\" text-anchor=\"end\">${locationName}</text>\n          </svg>`), 
           top: 0, 
           left: 0, 
           blend: 'over' 
         },
         // 左下角：摄影师信息（根据背景色自动选择文字颜色）
         { 
-          input: Buffer.from(`<svg width=\"${width}\" height=\"${finalTargetHeight}\">\n            <text x=\"10\" y=\"${height + finalWatermarkHeight - fontSize / 3}\" font-family=\"Arial\" font-size=\"${fontSize}\" fill=\"${foregroundColor}\" stroke=\"${foregroundColor === 'white' ? 'black' : 'white'}\" stroke-width=\"1\" paint-order=\"stroke fill\">Photo by ${photographer} with ${cameraModel}</text>\n          </svg>`), 
+          input: Buffer.from(`<svg width=\"${width}\" height=\"${finalTargetHeight}\">\n            <text x=\"${margin}\" y=\"${height + finalWatermarkHeight - margin}\" font-family=\"Arial\" font-size=\"${fontSize}\" fill=\"${foregroundColor}\" stroke=\"${foregroundColor === 'white' ? 'black' : 'white'}\" stroke-width=\"1\" paint-order=\"stroke fill\">Photo by ${photographer} with ${cameraModel}</text>\n          </svg>`), 
           top: 0, 
           left: 0, 
           blend: 'over' 
         },
         // 右下角：相机参数（根据背景色自动选择文字颜色）
         { 
-          input: Buffer.from(`<svg width=\"${width}\" height=\"${finalTargetHeight}\">\n            <text x=\"${width - 10}\" y=\"${height + finalWatermarkHeight - fontSize / 3}\" font-family=\"Arial\" font-size=\"${fontSize}\" fill=\"${foregroundColor}\" stroke=\"${foregroundColor === 'white' ? 'black' : 'white'}\" stroke-width=\"1\" paint-order=\"stroke fill\" text-anchor=\"end\">${focalLength} ${aperture} ${exposureTime} ISO${iso}</text>\n          </svg>`), 
+          input: Buffer.from(`<svg width=\"${width}\" height=\"${finalTargetHeight}\">\n            <text x=\"${width - margin}\" y=\"${height + finalWatermarkHeight - margin}\" font-family=\"Arial\" font-size=\"${fontSize}\" fill=\"${foregroundColor}\" stroke=\"${foregroundColor === 'white' ? 'black' : 'white'}\" stroke-width=\"1\" paint-order=\"stroke fill\" text-anchor=\"end\">${focalLength} ${aperture} ${exposureTime} ISO${iso}</text>\n          </svg>`), 
           top: 0, 
           left: 0, 
           blend: 'over' 
         }
       ])
-      .jpeg({ quality: 85, optimizeCoding: true })
       .toBuffer()
 
     // 如果是竖排图片，顺时针旋转90度恢复方向
     if (isPortrait) {
-      logger?.info('Rotating back to portrait orientation...')
-      finalImage = await sharp(finalImage)
+      logger.image?.info('Rotating back to portrait orientation...')
+      finalImageWithoutExif = await sharp(finalImageWithoutExif)
         .rotate(90)
-        .jpeg({ quality: 85 })
         .toBuffer()
     }
 
-    // 确保print目录存在
-    if ((storageProvider as any).config?.provider === 'local') {
-      const basePath = (storageProvider as any).config.basePath as string
-      const printDirPath = path.resolve(basePath, 'print')
+    // 将原始EXIF信息应用到最终图像上
+    logger.image?.info('Applying original EXIF data to final image...')
+    
+    // 获取原始图像的EXIF数据
+    const originalMetadata = await sharp(originalBuffer).metadata();
+    if (originalMetadata.exif) {
+      // 由于sharp无法直接复制EXIF数据，我们需要使用外部库来实现
+      // 首先保存处理后的图片
+      const processedBuffer = await sharp(finalImageWithoutExif)
+        .jpeg({ quality: 85, optimizeCoding: true })
+        .toBuffer();
+      
+      // 使用exiftool-vendored来复制EXIF数据
+      const { exiftool } = await import("exiftool-vendored");
+      
       try {
-        await fs.mkdir(printDirPath, { recursive: true })
-        logger?.info(`Created print directory: ${printDirPath}`)
-      } catch (error) {
-        logger?.error(`Failed to create print directory: ${error}`)
-        throw error
+        // 使用Node.js内置模块创建临时文件
+        const os = await import('os');
+        const fsNode = await import('fs');
+        const pathModule = await import('path');
+        
+        // 创建临时文件路径
+        const tempDir = os.tmpdir();
+        const inputTempPath = pathModule.join(tempDir, `processed_${Date.now()}.jpg`);
+        const originalTempPath = pathModule.join(tempDir, `original_${Date.now()}.jpg`);
+        
+        // 写入临时文件
+        await fsNode.promises.writeFile(inputTempPath, processedBuffer);
+        await fsNode.promises.writeFile(originalTempPath, originalBuffer);
+        
+        // 使用exiftool复制EXIF数据 - 从原始文件复制到目标文件
+        await exiftool.write(inputTempPath, {
+          "TagsFromFile": originalTempPath,
+        }, ['-overwrite_original']);
+        
+        // 读取带有EXIF数据的文件
+        const finalBufferWithExif = await fsNode.promises.readFile(inputTempPath);
+        
+        // 确保临时文件被清理
+        await fsNode.promises.unlink(inputTempPath);
+        await fsNode.promises.unlink(originalTempPath);
+        
+        // 确保print目录存在
+        if ((storageProvider as any).config?.provider === 'local') {
+          const basePath = (storageProvider as any).config.basePath as string
+          const printDirPath = path.resolve(basePath, 'print')
+          try {
+            await fs.mkdir(printDirPath, { recursive: true })
+            logger.image?.info(`Created print directory: ${printDirPath}`)
+          } catch (error) {
+            logger.image?.error(`Failed to create print directory: ${error}`)
+            throw error
+          }
+        }
+
+        // 保存到print目录
+        const outputFileName = path.basename(storageKey)
+        const printKey = `print/${outputFileName}`
+        logger.image?.info(`Saving print photo to: ${printKey}`)
+        await storageProvider.create(printKey, finalBufferWithExif, 'image/jpeg')
+
+        logger.image?.success(`Print photo processed successfully: ${printKey}`)
+      } finally {
+        // 仅在长时间运行的应用中才需要调用end()
       }
+    } else {
+      // 如果没有EXIF数据，则跳过添加EXIF
+      const finalImageWithoutExifProcessed = await sharp(finalImageWithoutExif)
+        .jpeg({ quality: 85, optimizeCoding: true })
+        .toBuffer()
+      
+      // 确保print目录存在
+      if ((storageProvider as any).config?.provider === 'local') {
+        const basePath = (storageProvider as any).config.basePath as string
+        const printDirPath = path.resolve(basePath, 'print')
+        try {
+          await fs.mkdir(printDirPath, { recursive: true })
+          logger.image?.info(`Created print directory: ${printDirPath}`)
+        } catch (error) {
+          logger.image?.error(`Failed to create print directory: ${error}`)
+          throw error
+        }
+      }
+
+      // 保存到print目录
+      const outputFileName = path.basename(storageKey)
+      const printKey = `print/${outputFileName}`
+      logger.image?.info(`Saving print photo to: ${printKey}`)
+      await storageProvider.create(printKey, finalImageWithoutExifProcessed, 'image/jpeg')
+
+      logger.image?.success(`Print photo processed successfully: ${printKey}`)
     }
-
-    // 保存到print目录
-    const outputFileName = path.basename(storageKey)
-    const printKey = `print/${outputFileName}`
-    logger?.info(`Saving print photo to: ${printKey}`)
-    await storageProvider.create(printKey, finalImage, 'image/jpeg')
-
-    logger?.success(`Print photo processed successfully: ${printKey}`)
   } catch (error) {
-    logger?.error(`Print photo processing failed: ${error}`)
+    logger.image?.error(`Print photo processing failed: ${error}`)
     // 添加更多调试信息
     if (error instanceof Error) {
-      logger?.error(`Error details: ${error.message}`)
-      logger?.error(`Error stack: ${error.stack}`)
+      logger.image?.error(`Error details: ${error.message}`)
+      logger.image?.error(`Error stack: ${error.stack}`)
     }
     throw error
   }
