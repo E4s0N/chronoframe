@@ -63,6 +63,7 @@ export const photos = sqliteTable('photos', {
   isLivePhoto: integer('is_live_photo').default(0).notNull(),
   livePhotoVideoUrl: text('live_photo_video_url'),
   livePhotoVideoKey: text('live_photo_video_key'),
+  show: integer('show', { mode: 'boolean' }).default(true).notNull(),
 })
 
 export const pipelineQueue = sqliteTable('pipeline_queue', {

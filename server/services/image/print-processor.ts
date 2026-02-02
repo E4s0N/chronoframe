@@ -235,7 +235,9 @@ export async function processPrintPhoto(params: PrintPhotoParams): Promise<void>
     const fileName = path.basename(storageKey, path.extname(storageKey))
     
     // 获取网站前缀（从环境变量或默认值）
-    const sitePrefix = process.env.SITE_URL || 'http://localhost:3000'
+    const runtimeConfig = useRuntimeConfig()
+    const sitePrefix = runtimeConfig.SITE_URL || 'https://gallery.drtk.cn'
+    logger?.info(`Using site prefix for QR code: ${sitePrefix}`)
     
     // 生成二维码内容：网站前缀 + 文件名（不带扩展名）
     const qrCodeContent = `${sitePrefix}/${fileName}`

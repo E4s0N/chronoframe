@@ -51,6 +51,9 @@
       "globe": {
         "tooltip": "Globe"
       },
+      "refresh": {
+        "tooltip": "Refresh Photos"
+      },
       "home": {
         "tooltip": "Back to Home"
       },
@@ -540,12 +543,26 @@
         "delete": "Delete",
         "editMetadata": "Edit Metadata",
         "previewPhoto": "Photo Preview",
-        "regeneratePrint": "Regenerate Print Image"
+        "regeneratePrint": "Regenerate Print Image",
+        "showOnHome": "Show on Homepage",
+        "hideFromHome": "Hide from Homepage"
+      },
+      "batchActions": {
+        "showOnHome": "Show on homepage",
+        "hideFromHome": "Hide from homepage"
+      },
+      "filters": {
+        "all": "All Photos",
+        "visible": "Visible",
+        "hidden": "Hidden"
       },
       "selection": {
         "selected": "{count} / {total} rows selected",
         "batchReprocess": "Reprocess",
         "batchDownload": "Download",
+        "batchShow": "Show on Homepage",
+        "batchHide": "Hide from Homepage",
+        "batchHideFromHomepage": "Hide from Homepage",
         "batchDelete": "Batch Delete"
       },
       "slideover": {
@@ -611,7 +628,18 @@
         "printRegenerationRequested": "Print image regeneration requested",
         "printRegenerationQueued": "A task to regenerate the print image has been queued.",
         "printRegenerationFailed": "Print image regeneration request failed",
-        "printRegenerationQueueError": "Failed to queue the print image regeneration task."
+        "printRegenerationQueueError": "Failed to queue the print image regeneration task.",
+        "visibilityShown": "Visibility Updated",
+        "visibilityHidden": "Visibility Updated",
+        "shownOnHome": "Photo is now visible on homepage.",
+        "hiddenFromHome": "Photo is now hidden from homepage.",
+        "visibilityToggleFailed": "Failed to update photo visibility.",
+        "batchVisibilityShown": "Photos Visibility Updated",
+        "batchVisibilityHidden": "Photos Visibility Updated",
+        "batchVisibilityUpdated": "Updated visibility for {count} photos.",
+        "batchVisibilityToggleFailed": "Failed to update photos visibility.",
+        "showOnHome": "Show on Homepage",
+        "hideFromHome": "Hide from Homepage"
       },
       "errors": {
         "noSelection": "Please select photos to upload",

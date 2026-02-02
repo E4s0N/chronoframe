@@ -1,11 +1,10 @@
-import { desc, eq } from 'drizzle-orm'
+import { desc } from 'drizzle-orm'
 
 export default eventHandler(async (event) => {
-  // 始终只返回 show 为 true 的照片，确保首页仅展示可见照片
+  // 返回所有照片，不管show属性为何值，用于后台管理面板
   return useDB()
     .select()
     .from(tables.photos)
-    .where(eq(tables.photos.show, true))
     .orderBy(desc(tables.photos.dateTaken))
     .all()
 })

@@ -37,8 +37,14 @@ const MAX_FILE_SIZE = 256 // in MB
 
 const dayjs = useDayjs()
 
-const { status, refresh } = usePhotos()
-const { filteredPhotos, selectedCounts, hasActiveFilters } = usePhotoFilters()
+// 为了在仪表板中显示所有照片（包括show为false的），我们直接获取所有照片
+const { data: originalPhotos, pending, refresh } = await useAsyncData('dashboard-photos-all', async () => {
+  const photos = await $fetch<Photo[]>('/api/photos/all')
+  return photos
+})
+
+// 从usePhotoFilters获取selectedCounts和hasActiveFilters，但我们会自己实现过滤逻辑
+const { selectedCounts, hasActiveFilters } = usePhotoFilters()
 
 const totalSelectedFilters = computed(() => {
   return Object.values(selectedCounts.value).reduce(
@@ -573,10 +579,10 @@ const totalRowsCount = computed((): number => {
 })
 
 const livePhotoStats = computed(() => {
-  if (!filteredPhotos.value) return { total: 0, livePhotos: 0, staticPhotos: 0 }
+  if (!filteredData.value) return { total: 0, livePhotos: 0, staticPhotos: 0 }
 
-  const total = filteredPhotos.value.length
-  const livePhotos = filteredPhotos.value.filter(
+  const total = filteredData.value.length
+  const livePhotos = filteredData.value.filter(
     (photo: Photo) => photo.isLivePhoto,
   ).length
   const staticPhotos = total - livePhotos
@@ -584,19 +590,116 @@ const livePhotoStats = computed(() => {
   return { total, livePhotos, staticPhotos }
 })
 
-const photoFilter = ref<'all' | 'livephoto' | 'static'>('all')
+const photoFilter = ref<'all' | 'livephoto' | 'static' | 'visible' | 'hidden'>('all')
 
+// 使用所有照片数据，包括show为false的，并应用过滤
 const filteredData = computed(() => {
-  if (!filteredPhotos.value) return []
+  if (!originalPhotos.value) return []
 
+  // 先应用基本过滤（Live Photo类型或可见性）
+  let result = [...originalPhotos.value]
+  
   switch (photoFilter.value) {
     case 'livephoto':
-      return filteredPhotos.value.filter((photo: Photo) => photo.isLivePhoto)
+      result = result.filter((photo: Photo) => photo.isLivePhoto)
+      break
     case 'static':
-      return filteredPhotos.value.filter((photo: Photo) => !photo.isLivePhoto)
+      result = result.filter((photo: Photo) => !photo.isLivePhoto)
+      break
+    case 'visible':
+      result = result.filter((photo: Photo) => photo.show)
+      break
+    case 'hidden':
+      result = result.filter((photo: Photo) => !photo.show)
+      break
     default:
-      return filteredPhotos.value
+      // 不过滤
+      break
   }
+
+  // 应用标签过滤
+  if (selectedCounts.value.tags > 0) {
+    const selectedTags = Object.entries(selectedCounts.value.tagsMap || {})
+      .filter(([_, count]) => count > 0)
+      .map(([tag, _]) => tag.toLowerCase())
+    if (selectedTags.length > 0) {
+      result = result.filter(photo => 
+        photo.tags?.some(tag => 
+          selectedTags.includes(tag.toLowerCase())
+        )
+      )
+    }
+  }
+
+  // 应用相机过滤
+  if (selectedCounts.value.cameras > 0) {
+    const selectedCameras = Object.entries(selectedCounts.value.camerasMap || {})
+      .filter(([_, count]) => count > 0)
+      .map(([camera, _]) => camera)
+    if (selectedCameras.length > 0) {
+      result = result.filter(photo => 
+        photo.exif?.Model && 
+        selectedCameras.includes(photo.exif.Model)
+      )
+    }
+  }
+
+  // 应用镜头过滤
+  if (selectedCounts.value.lenses > 0) {
+    const selectedLenses = Object.entries(selectedCounts.value.lensesMap || {})
+      .filter(([_, count]) => count > 0)
+      .map(([lens, _]) => lens)
+    if (selectedLenses.length > 0) {
+      result = result.filter(photo => 
+        photo.exif?.LensModel && 
+        selectedLenses.includes(photo.exif.LensModel)
+      )
+    }
+  }
+
+  // 应用城市过滤
+  if (selectedCounts.value.cities > 0) {
+    const selectedCities = Object.entries(selectedCounts.value.citiesMap || {})
+      .filter(([_, count]) => count > 0)
+      .map(([city, _]) => city)
+    if (selectedCities.length > 0) {
+      result = result.filter(photo => 
+        photo.city && 
+        selectedCities.includes(photo.city)
+      )
+    }
+  }
+
+  // 应用评分过滤
+  if (selectedCounts.value.ratings > 0) {
+    const selectedRatings = Object.entries(selectedCounts.value.ratingsMap || {})
+      .filter(([_, count]) => count > 0)
+      .map(([rating, _]) => parseInt(rating))
+    if (selectedRatings.length > 0) {
+      result = result.filter(photo => 
+        photo.exif?.Rating && 
+        selectedRatings.includes(photo.exif.Rating)
+      )
+    }
+  }
+
+  // 应用搜索过滤 - 现在可以搜索所有字段，包括隐藏的照片
+  if (selectedCounts.value.search) {
+    const searchTerm = selectedCounts.value.search.toLowerCase()
+    result = result.filter(photo => 
+      photo.title?.toLowerCase().includes(searchTerm) ||
+      photo.description?.toLowerCase().includes(searchTerm) ||
+      photo.tags?.some(tag => tag.toLowerCase().includes(searchTerm)) ||
+      photo.exif?.Model?.toLowerCase().includes(searchTerm) ||
+      photo.city?.toLowerCase().includes(searchTerm) ||
+      photo.country?.toLowerCase().includes(searchTerm) ||
+      photo.province?.toLowerCase().includes(searchTerm) ||
+      photo.locationName?.toLowerCase().includes(searchTerm) ||
+      photo.id.toLowerCase().includes(searchTerm)  // 也搜索照片ID
+    )
+  }
+
+  return result
 })
 
 // 监听过滤后的照片变化，自动获取表态数据
@@ -808,19 +911,32 @@ const columns: TableColumn<Photo>[] = [
   },
   {
     id: 'thumbnailUrl',
+    id: 'thumbnailUrl',
     accessorKey: 'thumbnailUrl',
     header: $t('dashboard.photos.table.columns.thumbnail.title'),
     cell: ({ row }) => {
       const url = row.original.thumbnailUrl
-      return h(ThumbImage, {
-        src: url || row.original.originalUrl || '',
-        alt: row.original.title || 'Photo Thumbnail',
-        key: row.original.id,
-        thumbhash: row.original.thumbnailHash || '',
-        class: 'size-16 min-w-[100px] object-cover rounded-md shadow',
-        onClick: () => openImagePreview(row.original),
-        style: { cursor: url ? 'pointer' : 'default' },
-      })
+      const photo = row.original
+      return h('div', { class: 'relative' }, [
+        h(ThumbImage, {
+          src: url || row.original.originalUrl || '',
+          alt: row.original.title || 'Photo Thumbnail',
+          key: row.original.id,
+          thumbhash: row.original.thumbnailHash || '',
+          class: 'size-16 min-w-[100px] object-cover rounded-md shadow',
+          onClick: () => openImagePreview(row.original),
+          style: { cursor: url ? 'pointer' : 'default' },
+        }),
+        // 添加眼睛关闭图标，当照片不显示在首页时
+        !photo.show ? h('div', { 
+          class: 'absolute top-1 right-1 bg-black/70 rounded-full p-0.5' 
+        }, [
+          h(Icon, {
+            name: 'tabler:eye-off',
+            class: 'size-3 text-white',
+          })
+        ]) : null
+      ])
     },
     enableHiding: false,
   },
@@ -1429,6 +1545,139 @@ const handleReverseGeocodeRequest = async (photo: Photo) => {
   }
 }
 
+// 切换单张照片的可见性
+const togglePhotoVisibility = async (photo: Photo) => {
+  try {
+    const result = await $fetch(`/api/photos/${photo.id}/toggle-show`, {
+      method: 'PUT',
+    })
+
+    if (result.success) {
+      // 更新本地数据
+      photo.show = !photo.show
+      
+      toast.add({
+        title: photo.show 
+          ? $t('dashboard.photos.messages.visibilityShown') 
+          : $t('dashboard.photos.messages.visibilityHidden'),
+        description: photo.show 
+          ? $t('dashboard.photos.messages.shownOnHome') 
+          : $t('dashboard.photos.messages.hiddenFromHome'),
+        color: 'success',
+      })
+      
+      await refresh() // 刷新照片列表
+    }
+  } catch (error: any) {
+    console.error('切换照片可见性失败:', error)
+    toast.add({
+      title: $t('dashboard.photos.messages.visibilityToggleFailed'),
+      description: error.message || $t('dashboard.photos.messages.error'),
+      color: 'error',
+    })
+  }
+}
+
+// 批量切换照片可见性
+const handleBatchToggleVisibility = async (show: boolean) => {
+  const selectedRowModel = table.value?.tableApi?.getFilteredSelectedRowModel()
+  const selectedPhotos = selectedRowModel?.rows.map((row: any) => row.original) || []
+
+  if (selectedPhotos.length === 0) {
+    toast.add({
+      title: $t('dashboard.photos.messages.batchSelectRequired'),
+      description: '',
+      color: 'warning',
+    })
+    return
+  }
+
+  try {
+    const photoIds = selectedPhotos.map((photo: Photo) => photo.id)
+    
+    const result = await $fetch('/api/photos/batch-toggle-show', {
+      method: 'PUT',
+      body: {
+        photoIds,
+        show,
+      },
+    })
+
+    if (result.success) {
+      toast.add({
+        title: show 
+          ? $t('dashboard.photos.messages.batchVisibilityShown') 
+          : $t('dashboard.photos.messages.batchVisibilityHidden'),
+        description: $t('dashboard.photos.messages.batchVisibilityUpdated', {
+          count: result.updatedCount,
+        }),
+        color: 'success',
+      })
+      
+      // 清空选中状态
+      rowSelection.value = {}
+      
+      await refresh() // 刷新照片列表
+    }
+  } catch (error: any) {
+    console.error('批量切换照片可见性失败:', error)
+    toast.add({
+      title: $t('dashboard.photos.messages.batchVisibilityToggleFailed'),
+      description: error.message || $t('dashboard.photos.messages.error'),
+      color: 'error',
+    })
+  }
+}
+
+async function handleBatchHideFromHomepage() {
+  const selectedRowModel = table.value?.tableApi?.getFilteredSelectedRowModel()
+  const selectedPhotos = selectedRowModel?.rows.map((row: any) => row.original) || []
+
+  if (selectedPhotos.length === 0) {
+    toast.add({
+      title: $t('dashboard.photos.messages.batchSelectRequired'),
+      color: 'red',
+    })
+    return
+  }
+
+  const selectedPhotoIds = selectedPhotos.map((photo: Photo) => photo.id)
+  
+  // 调试：输出选中的ID数量和前几个ID
+  console.log(`Selected ${selectedPhotoIds.length} photos:`, selectedPhotoIds.slice(0, 5))
+
+  try {
+    const result = await $fetch('/api/photos/batch-toggle-show', {
+      method: 'PUT',
+      body: { photoIds: selectedPhotoIds, show: false }, // 传递show: false来隐藏照片
+    })
+
+    console.log(`API response:`, result)
+    
+    if (result.updatedCount > 0) {
+      toast.add({
+        title: $t('dashboard.photos.messages.batchVisibilityHidden'),
+        description: $t('dashboard.photos.messages.batchVisibilityUpdated', { count: result.updatedCount }),
+        color: 'green',
+      })
+      await refresh()
+    } else {
+      // 如果没有更新任何照片，提示用户
+      toast.add({
+        title: $t('dashboard.photos.messages.batchVisibilityToggleFailed'),
+        description: $t('dashboard.photos.messages.batchVisibilityUpdated', { count: 0 }),
+        color: 'yellow',
+      })
+    }
+  } catch (error) {
+    console.error('Error hiding photos from homepage:', error)
+    toast.add({
+      title: $t('dashboard.photos.messages.batchVisibilityToggleFailed'),
+      color: 'red',
+    })
+  }
+}
+
 // 重新处理单张照片
 const handleReprocessSingle = async (photo: Photo) => {
   try {
@@ -1523,6 +1772,15 @@ const getRowActions = (photo: Photo) => {
         icon: 'tabler:paint',
         onSelect() {
           handleRegeneratePrint(photo)
+        },
+      },
+      {
+        label: photo.show 
+          ? $t('dashboard.photos.actions.hideFromHome') 
+          : $t('dashboard.photos.actions.showOnHome'),
+        icon: photo.show ? 'tabler:eye-off' : 'tabler:eye',
+        onSelect() {
+          togglePhotoVisibility(photo)
         },
       },
     ],
@@ -2244,6 +2502,16 @@ const handleRegeneratePrint = async (photo: Photo) => {
                   value: 'static',
                   icon: 'tabler:photo',
                 },
+                {
+                  label: $t('dashboard.photos.filters.visible'),
+                  value: 'visible',
+                  icon: 'tabler:eye',
+                },
+                {
+                  label: $t('dashboard.photos.filters.hidden'),
+                  value: 'hidden',
+                  icon: 'tabler:eye-off',
+                },
               ]"
               value-key="value"
               label-key="label"
@@ -2400,6 +2668,37 @@ const handleRegeneratePrint = async (photo: Photo) => {
                   <span>{{
                     $t('dashboard.photos.selection.batchDownload')
                   }}</span>
+                </UButton>
+
+                <UButton
+                  variant="soft"
+                  :color="filteredData.some(p => p.show && rowSelection[p.id]) ? 'neutral' : 'primary'"
+                  size="xs"
+                  :icon="filteredData.some(p => p.show && rowSelection[p.id]) ? 'tabler:eye-off' : 'tabler:eye'"
+                  class="flex-1 sm:flex-none"
+                  @click="handleBatchToggleVisibility(!filteredData.some(p => p.show && rowSelection[p.id]))"
+                >
+                  <span>
+                    {{
+                      filteredData.some(p => p.show && rowSelection[p.id])
+                        ? $t('dashboard.photos.selection.batchHide')
+                        : $t('dashboard.photos.selection.batchShow')
+                    }}
+                  </span>
+                </UButton>
+
+                <!-- 批量隐藏到首页按钮 -->
+                <UButton
+                  variant="soft"
+                  color="amber"
+                  size="xs"
+                  icon="tabler:eye-off"
+                  class="flex-1 sm:flex-none"
+                  @click="handleBatchHideFromHomepage"
+                >
+                  <span>
+                    {{ $t('dashboard.photos.selection.batchHideFromHomepage') }}
+                  </span>
                 </UButton>
 
                 <UButton

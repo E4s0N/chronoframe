@@ -21,7 +21,11 @@ useHead({
     `${title ? title + ' | ' : ''}${appTitle.value || 'ChronoFrame'}`,
 })
 
-const { data, refresh, status } = useFetch('/api/photos')
+const { data, refresh, status } = useFetch('/api/photos', {
+  query: {
+    public: true  // 只获取公开显示的照片
+  }
+})
 const photos = computed(() => (data.value as Photo[]) || [])
 
 const { switchToIndex, closeViewer, clearReturnRoute } = useViewerState()

@@ -78,6 +78,13 @@
       "when": 1769780734111,
       "tag": "0010_yummy_gabe_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1770014941205,
+      "tag": "0011_add_show_field_to_photos",
+      "breakpoints": true
     }
   ]
 }

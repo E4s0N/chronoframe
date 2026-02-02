@@ -47,6 +47,9 @@ const totalSelectedFilters = computed(() => {
 })
 
 const isRepoLinkHovering = ref(false)
+
+// 导入并使用usePhotos的refresh函数
+const { refresh } = usePhotos()
 </script>
 
 <template>
@@ -115,6 +118,16 @@ const isRepoLinkHovering = ref(false)
           <div
             class="flex items-center gap-0 p-1 bg-white/30 dark:bg-neutral-900/50 rounded-full"
           >
+            <UTooltip :text="$t('ui.action.refresh.tooltip')">
+              <UButton
+                variant="soft"
+                color="neutral"
+                class="bg-transparent rounded-full cursor-pointer"
+                icon="tabler:refresh"
+                size="sm"
+                @click="refresh"
+              />
+            </UTooltip>
             <UTooltip :text="$t('ui.action.globe.tooltip')">
               <UButton
                 variant="soft"

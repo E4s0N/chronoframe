@@ -55,6 +55,9 @@
       "globe": {
         "tooltip": "地球仪"
       },
+      "refresh": {
+        "tooltip": "刷新照片"
+      },
       "home": {
         "tooltip": "返回首页"
       },
@@ -548,12 +551,26 @@
         "delete": "删除",
         "editMetadata": "编辑信息",
         "previewPhoto": "预览照片",
-        "regeneratePrint": "重新生成打印图片"
+        "regeneratePrint": "重新生成打印图片",
+        "showOnHome": "在首页显示",
+        "hideFromHome": "在首页隐藏"
+      },
+      "batchActions": {
+        "showOnHome": "在首页显示",
+        "hideFromHome": "在首页隐藏"
+      },
+      "filters": {
+        "all": "全部照片",
+        "visible": "可见",
+        "hidden": "隐藏"
       },
       "selection": {
         "selected": "{count} / {total} 行已选择",
         "batchReprocess": "重新处理",
         "batchDownload": "批量下载",
+        "batchShow": "在首页显示",
+        "batchHide": "在首页隐藏",
+        "batchHideFromHomepage": "在首页隐藏",
         "batchDelete": "批量删除"
       },
       "slideover": {
@@ -634,7 +651,16 @@
         "printGenerationStarting": "开始生成打印图片任务...",
         "printGenerationSuccess": "打印图片生成任务已添加",
         "printGenerationTaskId": "任务ID: {taskId}",
-        "printGenerationFailed": "重新生成打印图片失败"
+        "printGenerationFailed": "重新生成打印图片失败",
+        "visibilityShown": "可见性已更新",
+        "visibilityHidden": "可见性已更新",
+        "shownOnHome": "照片现在在首页可见。",
+        "hiddenFromHome": "照片现在在首页隐藏。",
+        "visibilityToggleFailed": "更新照片可见性失败。",
+        "batchVisibilityShown": "照片可见性已更新",
+        "batchVisibilityHidden": "照片可见性已更新",
+        "batchVisibilityUpdated": "已更新 {count} 张照片的可见性。",
+        "batchVisibilityToggleFailed": "更新照片可见性失败。"
       },
       "errors": {
         "noSelection": "请选择要上传的照片",

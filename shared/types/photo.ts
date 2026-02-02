@@ -95,6 +95,35 @@ export interface NeededExif {
   MicroVideoPresentationTimestampUs?: Tags['MicroVideoPresentationTimestampUs']
 }
 
+export interface Photo {
+  id: string
+  title?: string
+  description?: string
+  width?: number
+  height?: number
+  aspectRatio?: number
+  dateTaken?: string
+  storageKey?: string
+  thumbnailKey?: string
+  fileSize?: number
+  lastModified?: string
+  originalUrl?: string
+  thumbnailUrl?: string
+  thumbnailHash?: string
+  tags?: string[]
+  exif?: NeededExif
+  latitude?: number
+  longitude?: number
+  country?: string
+  city?: string
+  province?: string
+  locationName?: string
+  isLivePhoto: boolean
+  livePhotoVideoUrl?: string
+  livePhotoVideoKey?: string
+  show: boolean  // 新增字段
+}
+
 export interface PhotoInfo {
   title: string
   dateTaken: string

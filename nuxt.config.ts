@@ -34,6 +34,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
+      SITE_URL: '',
       VERSION: pkg.version,
       mapbox: {
         accessToken: '',
@@ -45,7 +46,7 @@ export default defineNuxtConfig({
         avatarUrl: '',
       },
       map: {
-        provider: 'maplibre' as 'mapbox' | 'maplibre',
+        provider: 'mapbox' | 'maplibre',
         mapbox: {
           style: ''
         },
@@ -186,6 +187,9 @@ export default defineNuxtConfig({
         transformMixedEsModules: true,
       },
     },
+    server:{
+      allowedHosts: ['localhost','gallery.drtk.cn'],
+    }
   },
 
   gtag: {
