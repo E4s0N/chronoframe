@@ -1,12 +1,15 @@
 <script lang="ts" setup>
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
-import type { DbPhoto, PipelineQueueItem } from '~~/server/utils/db'
+import type { PipelineQueueItem } from '~~/server/utils/db'
 import { h, resolveComponent } from 'vue'
 import { Icon, UBadge } from '#components'
 import ThumbImage from '~/components/ui/ThumbImage.vue'
 
 const UCheckbox = resolveComponent('UCheckbox')
 const Rating = resolveComponent('Rating')
+
+// 引入照片过滤组合函数
+const { activeFilters } = usePhotoFilters()
 
 // 列名显示映射
 const columnNameMap: Record<string, string> = {
@@ -28,7 +31,6 @@ const columnNameMap: Record<string, string> = {
 definePageMeta({
   layout: 'dashboard',
 })
-
 useHead({
   title: $t('title.photos'),
 })
@@ -38,7 +40,7 @@ const MAX_FILE_SIZE = 256 // in MB
 const dayjs = useDayjs()
 
 // 为了在仪表板中显示所有照片（包括show为false的），我们直接获取所有照片
-const { data: originalPhotos, pending, refresh } = await useAsyncData('dashboard-photos-all', async () => {
+const { data: originalPhotos, refresh } = await useAsyncData('dashboard-photos-all', async () => {
   const photos = await $fetch<Photo[]>('/api/photos/all')
   return photos
 })
@@ -274,15 +276,6 @@ const isMetadataDirty = computed(
     ratingChanged.value,
 )
 
-const formattedCoordinates = computed(() => {
-  if (!locationSelection.value) {
-    return null
-  }
-  return {
-    latitude: locationSelection.value.latitude.toFixed(6),
-    longitude: locationSelection.value.longitude.toFixed(6),
-  }
-})
 
 const formattedCoordinateString = computed(() => {
   if (locationSelection.value && 
@@ -596,7 +589,7 @@ const photoFilter = ref<'all' | 'livephoto' | 'static' | 'visible' | 'hidden'>('
 const filteredData = computed(() => {
   if (!originalPhotos.value) return []
 
-  // 先应用基本过滤（Live Photo类型或可见性）
+  // 先应用基本过滤（Live Photo类型和可见性）
   let result = [...originalPhotos.value]
   
   switch (photoFilter.value) {
@@ -617,85 +610,65 @@ const filteredData = computed(() => {
       break
   }
 
-  // 应用标签过滤
-  if (selectedCounts.value.tags > 0) {
-    const selectedTags = Object.entries(selectedCounts.value.tagsMap || {})
-      .filter(([_, count]) => count > 0)
-      .map(([tag, _]) => tag.toLowerCase())
-    if (selectedTags.length > 0) {
-      result = result.filter(photo => 
-        photo.tags?.some(tag => 
-          selectedTags.includes(tag.toLowerCase())
-        )
+  // 应用标签过滤 - 直接使用activeFilters.value.tags数组
+  if (activeFilters.value.tags.length > 0) {
+    result = result.filter(photo => 
+      photo.tags?.some(tag => 
+        activeFilters.value.tags.includes(tag)
       )
-    }
+    )
   }
 
-  // 应用相机过滤
-  if (selectedCounts.value.cameras > 0) {
-    const selectedCameras = Object.entries(selectedCounts.value.camerasMap || {})
-      .filter(([_, count]) => count > 0)
-      .map(([camera, _]) => camera)
-    if (selectedCameras.length > 0) {
-      result = result.filter(photo => 
-        photo.exif?.Model && 
-        selectedCameras.includes(photo.exif.Model)
-      )
-    }
+  // 应用相机过滤 - 直接使用activeFilters.value.cameras数组
+  if (activeFilters.value.cameras.length > 0) {
+    result = result.filter(photo => {
+      const photoCamera = photo.exif?.Make && photo.exif?.Model 
+        ? `${photo.exif.Make} ${photo.exif.Model}`
+        : null
+      return photoCamera && activeFilters.value.cameras.includes(photoCamera)
+    })
   }
 
-  // 应用镜头过滤
-  if (selectedCounts.value.lenses > 0) {
-    const selectedLenses = Object.entries(selectedCounts.value.lensesMap || {})
-      .filter(([_, count]) => count > 0)
-      .map(([lens, _]) => lens)
-    if (selectedLenses.length > 0) {
-      result = result.filter(photo => 
-        photo.exif?.LensModel && 
-        selectedLenses.includes(photo.exif.LensModel)
-      )
-    }
+  // 应用镜头过滤 - 直接使用activeFilters.value.lenses数组
+  if (activeFilters.value.lenses.length > 0) {
+    result = result.filter(photo => {
+      const photoLens = photo.exif?.LensMake && photo.exif?.LensModel
+        ? `${photo.exif.LensMake} ${photo.exif.LensModel}`
+        : photo.exif?.LensModel || null
+      return photoLens && activeFilters.value.lenses.includes(photoLens)
+    })
   }
 
-  // 应用城市过滤
-  if (selectedCounts.value.cities > 0) {
-    const selectedCities = Object.entries(selectedCounts.value.citiesMap || {})
-      .filter(([_, count]) => count > 0)
-      .map(([city, _]) => city)
-    if (selectedCities.length > 0) {
-      result = result.filter(photo => 
-        photo.city && 
-        selectedCities.includes(photo.city)
-      )
-    }
+  // 应用城市过滤 - 直接使用activeFilters.value.cities数组
+  if (activeFilters.value.cities.length > 0) {
+    result = result.filter(photo => 
+      photo.city && activeFilters.value.cities.includes(photo.city)
+    )
   }
 
-  // 应用评分过滤
-  if (selectedCounts.value.ratings > 0) {
-    const selectedRatings = Object.entries(selectedCounts.value.ratingsMap || {})
-      .filter(([_, count]) => count > 0)
-      .map(([rating, _]) => parseInt(rating))
-    if (selectedRatings.length > 0) {
-      result = result.filter(photo => 
-        photo.exif?.Rating && 
-        selectedRatings.includes(photo.exif.Rating)
-      )
-    }
+  // 应用评分过滤 - 直接使用activeFilters.value.ratings值
+  if (activeFilters.value.ratings > 0) {
+    result = result.filter(photo => {
+      const photoRating = photo.exif?.Rating || 0
+      return photoRating >= activeFilters.value.ratings
+    })
   }
 
-  // 应用搜索过滤 - 现在可以搜索所有字段，包括隐藏的照片
-  if (selectedCounts.value.search) {
-    const searchTerm = selectedCounts.value.search.toLowerCase()
+  // 应用搜索过滤
+  if (activeFilters.value.search) {
+    const searchTerm = activeFilters.value.search.toLowerCase()
     result = result.filter(photo => 
       photo.title?.toLowerCase().includes(searchTerm) ||
       photo.description?.toLowerCase().includes(searchTerm) ||
       photo.tags?.some(tag => tag.toLowerCase().includes(searchTerm)) ||
-      photo.exif?.Model?.toLowerCase().includes(searchTerm) ||
+      (photo.exif?.Make && photo.exif.Make.toLowerCase().includes(searchTerm)) ||
+      (photo.exif?.Model && photo.exif.Model.toLowerCase().includes(searchTerm)) ||
+      (photo.exif?.LensModel && photo.exif.LensModel.toLowerCase().includes(searchTerm)) ||
       photo.city?.toLowerCase().includes(searchTerm) ||
       photo.country?.toLowerCase().includes(searchTerm) ||
       photo.province?.toLowerCase().includes(searchTerm) ||
       photo.locationName?.toLowerCase().includes(searchTerm) ||
-      photo.id.toLowerCase().includes(searchTerm)  // 也搜索照片ID
+      photo.id.toLowerCase().includes(searchTerm)
     )
   }
 
@@ -1365,10 +1338,6 @@ const openMetadataEditor = (photo: Photo) => {
   isEditModalOpen.value = true
 }
 
-const handleManualCoordinateChange = () => {
-  // 当手动输入坐标时，触发位置变更检测
-  locationTouched.value = true
-}
 
 const handleLocationPick = () => {
   locationTouched.value = true
@@ -1922,6 +1891,89 @@ const confirmDelete = async () => {
   }
 
   isDeleting.value = false
+}
+
+// 批量生成打印照片功能
+const handleBatchGeneratePrint = async () => {
+  const selectedRowModel = table.value?.tableApi?.getFilteredSelectedRowModel()
+  const selectedPhotos =
+    selectedRowModel?.rows.map((row: any) => row.original) || []
+
+  if (selectedPhotos.length === 0) {
+    toast.add({
+      title: $t('dashboard.photos.messages.batchSelectRequired'),
+      description: '',
+      color: 'warning',
+    })
+    return
+  }
+
+  // 检查所有选中照片是否都有 storageKey
+  const photosWithStorageKey = selectedPhotos.filter(
+    (photo: Photo) => photo.storageKey,
+  )
+  if (photosWithStorageKey.length !== selectedPhotos.length) {
+    toast.add({
+      title: $t('dashboard.photos.messages.error'),
+      description: $t('dashboard.photos.messages.batchNoStorageKey', {
+        count: selectedPhotos.length - photosWithStorageKey.length,
+      }),
+      color: 'error',
+    })
+    return
+  }
+
+  try {
+    const printGenToast = toast.add({
+      title: $t('dashboard.photos.messages.batchPrintGenerationRequested'),
+      description: $t('dashboard.photos.messages.batchPrintGenerationStarting'),
+      color: 'info',
+    })
+
+    // 批量添加打印生成任务
+    const tasks = photosWithStorageKey.map((photo: Photo) => ({
+      payload: {
+        type: 'print-photo',
+        storageKey: photo.storageKey,
+        locationName: photo.locationName || '',
+      },
+      priority: 2, // 设置较高优先级
+      maxAttempts: 3,
+    }))
+
+    const result = await $fetch('/api/queue/add-tasks', {
+      method: 'POST',
+      body: {
+        tasks,
+      },
+    })
+
+    if (result.success) {
+      toast.update(printGenToast.id, {
+        title: $t('dashboard.photos.messages.batchPrintGenerationSuccess'),
+        description: $t('dashboard.photos.messages.batchPrintGenerationTaskCount', {
+          count: photosWithStorageKey.length,
+        }),
+        color: 'success',
+      })
+    } else {
+      toast.update(printGenToast.id, {
+        title: $t('dashboard.photos.messages.error'),
+        description: $t('dashboard.photos.messages.batchPrintGenerationFailed'),
+        color: 'error',
+      })
+    }
+
+    // 清空选中状态
+    rowSelection.value = {}
+  } catch (error: any) {
+    console.error('批量生成打印图片失败:', error)
+    toast.add({
+      title: $t('dashboard.photos.messages.batchPrintGenerationFailed'),
+      description: error.message || $t('dashboard.photos.messages.error'),
+      color: 'error',
+    })
+  }
 }
 
 // 批量重新处理照片功能
@@ -2654,6 +2706,19 @@ const handleRegeneratePrint = async (photo: Photo) => {
                 >
                   <span>{{
                     $t('dashboard.photos.selection.batchReprocess')
+                  }}</span>
+                </UButton>
+
+                <UButton
+                  variant="soft"
+                  color="secondary"
+                  size="xs"
+                  icon="tabler:paint"
+                  class="flex-1 sm:flex-none"
+                  @click="handleBatchGeneratePrint"
+                >
+                  <span>{{
+                    $t('dashboard.photos.selection.batchGeneratePrint')
                   }}</span>
                 </UButton>
 

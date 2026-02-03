@@ -19,6 +19,11 @@ export default defineEventHandler(async (event) => {
         latitude: z.number().min(-90).max(90).optional(),
         longitude: z.number().min(-180).max(180).optional(),
       }),
+      z.object({
+        type: z.literal('print-photo'),
+        storageKey: z.string().nonempty(),
+        locationName: z.string().optional(),
+      }),
     ])
 
     const { tasks, defaultPriority, defaultMaxAttempts } =

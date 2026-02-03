@@ -485,9 +485,13 @@
         "previewPhoto": "相片預覽"
       },
       "selection": {
-        "selected": "已選擇 {count} / {total} 列",
-        "batchReprocess": "批量重新處理",
+        "selected": "已選擇 {count} / {total} 行",
+        "batchReprocess": "重新處理",
         "batchDownload": "批量下載",
+        "batchGeneratePrint": "批量生成打印",
+        "batchShow": "顯示到首頁",
+        "batchHide": "從首頁隱藏",
+        "batchHideFromHomepage": "從首頁隱藏",
         "batchDelete": "批量刪除"
       },
       "slideover": {
@@ -533,6 +537,11 @@
         "uploadMultipleSuccess": "{count} 張相片上傳成功，處理中...",
         "reprocessSuccess": "重新處理任務已新增",
         "reprocessTaskId": "任務 ID：{taskId}",
+        "batchPrintGenerationRequested": "已請求批量打印生成",
+        "batchPrintGenerationStarting": "正在將打印生成任務添加到隊列...",
+        "batchPrintGenerationSuccess": "批量打印生成任務已成功加入隊列",
+        "batchPrintGenerationTaskCount": "已將 {count} 個打印生成任務添加到隊列",
+        "batchPrintGenerationFailed": "批量打印生成任務加入隊列失敗",
         "deleteSuccess": "相片已成功刪除",
         "batchDeleteSuccess": "成功刪除 {count} 張相片",
         "batchSelectRequired": "請選擇至少一張相片進行此操作",

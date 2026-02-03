@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
       .object({
         status: z.enum(['pending', 'in-stages', 'completed', 'failed']).optional(),
         type: z
-          .enum(['photo', 'live-photo-video', 'photo-reverse-geocoding'])
+          .enum(['photo', 'live-photo-video', 'photo-reverse-geocoding', 'print-photo'])
           .optional(),
       })
       .parseAsync(query)
