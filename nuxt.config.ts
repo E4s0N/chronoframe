@@ -30,7 +30,11 @@ export default defineNuxtConfig({
   ui: {
     fonts: false
   },
-  components: [{ path: '~/components/ui', pathPrefix: false }, '~/components'],
+  components: [
+    { path: '~/components/ui', pathPrefix: false }, 
+    '~/components',
+    '~/components/dashboard/photo'
+  ],
 
   runtimeConfig: {
     public: {
@@ -46,7 +50,7 @@ export default defineNuxtConfig({
         avatarUrl: '',
       },
       map: {
-        provider: 'mapbox' | 'maplibre',
+        provider: 'mapbox',
         mapbox: {
           style: ''
         },
