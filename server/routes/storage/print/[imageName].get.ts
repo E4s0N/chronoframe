@@ -1,9 +1,4 @@
-import path from 'node:path'
-import { createReadStream, promises as fs } from 'node:fs'
 import { getStorageManager } from '~~/server/plugins/3.storage'
-import { QueueManager } from '~~/server/services/pipeline-queue/manager'
-import { useDB, tables } from '~~/server/utils/db'
-import { eq } from 'drizzle-orm'
 
 // 简单的Content-Type猜测函数
 const guessContentType = (filePath: string): string => {
@@ -37,27 +32,30 @@ export default defineEventHandler(async (event) => {
   const manager = getStorageManager()
   const provider = manager.getProvider()
 
-  if ((provider as any).config?.provider !== 'local') {
-    throw createError({ statusCode: 404, statusMessage: 'Not Found' })
-  }
-
-  const basePath = (provider as any).config.basePath as string
-  const printPath = path.resolve(basePath, 'photos/print')
-  const printFilePath = path.resolve(printPath, imageName)
-  
   try {
-    // 检查print目录中是否存在该图片
-    await fs.access(printFilePath)
+    // 尝试从存储提供者获取打印图片
+    const printKey = `print/${imageName}`
+    const imageBuffer = await provider.get(printKey)
     
-    // 存在则返回图片
-    const stat = await fs.stat(printFilePath)
-    setHeader(event, 'Content-Type', guessContentType(printFilePath))
-    setHeader(event, 'Content-Length', stat.size)
+    if (!imageBuffer) {
+      throw new Error('Print image not found in storage')
+    }
+    
+    setHeader(event, 'Content-Type', guessContentType(imageName))
+    setHeader(event, 'Content-Length', imageBuffer.length)
     setHeader(event, 'Cache-Control', 'public, max-age=31536000, immutable')
     
-    return sendStream(event, createReadStream(printFilePath))
+    return imageBuffer
   } catch (error) {
-    // 图片不存在，直接返回404，因为现在会在上传时自动生成打印图片
-    throw createError({ statusCode: 404, statusMessage: 'Print image not found. It may still be processing or the source image does not exist.' })
+    // 图片不存在，返回404
+    throw createError({ 
+      statusCode: 404, 
+      statusMessage: 'Print image not found. It may still be processing or the source image does not exist.',
+      data: {
+        imageName,
+        providerType: (provider as any).config?.provider,
+        error: error instanceof Error ? error.message : String(error)
+      }
+    })
   }
 })

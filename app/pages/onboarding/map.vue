@@ -21,15 +21,29 @@ const schema = computed(() => {
   fields.value.forEach((field) => {
     if (!isFieldVisible(field)) return
 
-    let validator: z.ZodTypeAny = z.string()
-    if (field.ui.required) {
-      validator = (validator as z.ZodString).min(
-        1,
-        `${field.label} is required`,
-      )
+    let validator: z.ZodTypeAny
+
+    if (field.ui.type === 'number') {
+      // Handle number type fields properly
+      validator = z.coerce.number()
+      if (field.ui.required) {
+        validator = (validator as z.ZodNumber).min(
+          1,
+          `${field.label} is required`,
+        )
+      }
     } else {
-      validator = (validator as z.ZodString).optional()
+      validator = z.string()
+      if (field.ui.required) {
+        validator = (validator as z.ZodString).min(
+          1,
+          `${field.label} is required`,
+        )
+      } else {
+        validator = (validator as z.ZodString).optional()
+      }
     }
+
     s[field.key] = validator
   })
   return z.object(s)
@@ -95,6 +109,12 @@ function onSubmit() {
               v-if="field.ui.type === 'password'"
               v-model="state[field.key]"
               type="password"
+              :placeholder="$t(field.ui.placeholder || '')"
+            />
+            <WizardInput
+              v-else-if="field.ui.type === 'number'"
+              v-model.number="state[field.key]"
+              type="number"
               :placeholder="$t(field.ui.placeholder || '')"
             />
             <WizardInput

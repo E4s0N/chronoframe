@@ -50,9 +50,22 @@ async function migrateRuntimeConfigToSettings() {
       }
     }
     
-    // Migrate map settings
+    // Migrate map settings - only if no existing map provider is set
     if (config.public.map) {
       _logger.info('Migrating map settings')
+      
+      // Check if map provider is already configured
+      try {
+        const existingProvider = await settingsManager.get('map', 'provider')
+        if (existingProvider) {
+          _logger.info('Map provider already configured, skipping migration')
+          return
+        }
+      } catch (error) {
+        // Setting doesn't exist yet, proceed with migration
+        _logger.debug('No existing map provider found, proceeding with migration')
+      }
+      
       const mapSettings = {
         provider: config.public.map.provider,
         'mapbox.token': config.mapbox?.accessToken || '',

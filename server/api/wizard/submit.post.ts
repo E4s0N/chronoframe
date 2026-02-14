@@ -2,6 +2,9 @@ import { z } from 'zod'
 import { settingsManager } from '~~/server/services/settings/settingsManager'
 import { storageConfigSchema } from '~~/shared/types/storage'
 import { useDB, tables, eq } from '~~/server/utils/db'
+import { StorageManager } from '~~/server/services/storage/manager'
+import { setGlobalStorageManager } from '~~/server/services/storage/events'
+import { logger } from '~~/server/utils/logger'
 
 export default eventHandler(async (event) => {
   const body = await readValidatedBody(
@@ -67,14 +70,29 @@ export default eventHandler(async (event) => {
   if (body.site.author) await settingsManager.set('app', 'author', body.site.author)
 
   // 3. Handle Storage Settings
-  // Check if provider already exists to avoid duplicates if re-running?
-  // For now, just add it.
-  const id = await settingsManager.storage.addProvider({
-    name: body.storage.name,
-    provider: body.storage.config.provider,
-    config: body.storage.config,
-  })
-  await settingsManager.set('storage', 'provider', id)
+  // Temporarily disable storage provider switch during wizard setup
+  settingsManager.setInitializingFlag(true)
+  
+  try {
+    // Check if provider already exists to avoid duplicates if re-running?
+    // For now, just add it.
+    const id = await settingsManager.storage.addProvider({
+      name: body.storage.name,
+      provider: body.storage.config.provider,
+      config: body.storage.config,
+    })
+    await settingsManager.set('storage', 'provider', id)
+    
+    // Manually initialize storage manager since we disabled automatic switching
+    const storageManager = new StorageManager(
+      body.storage.config,
+      logger.storage,
+    )
+    setGlobalStorageManager(storageManager)
+  } finally {
+    // Re-enable storage provider switch triggers
+    settingsManager.setInitializingFlag(false)
+  }
 
   // 4. Handle Map Settings
   await settingsManager.set('map', 'provider', body.map.provider)

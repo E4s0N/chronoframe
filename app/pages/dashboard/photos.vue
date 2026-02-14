@@ -884,7 +884,6 @@ const columns: TableColumn<Photo>[] = [
   },
   {
     id: 'thumbnailUrl',
-    id: 'thumbnailUrl',
     accessorKey: 'thumbnailUrl',
     header: $t('dashboard.photos.table.columns.thumbnail.title'),
     cell: ({ row }) => {

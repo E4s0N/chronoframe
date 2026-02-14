@@ -50,7 +50,7 @@ export default defineNuxtConfig({
         avatarUrl: '',
       },
       map: {
-        provider: 'mapbox',
+        provider: 'maplibre',
         mapbox: {
           style: ''
         },

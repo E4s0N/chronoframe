@@ -26,6 +26,15 @@ const schema = computed(() => {
 
     if (field.type === 'boolean' || field.ui.type === 'toggle') {
       validator = z.boolean()
+    } else if (field.ui.type === 'number') {
+      // Handle number type fields properly
+      validator = z.coerce.number()
+      if (field.ui.required) {
+        validator = (validator as z.ZodNumber).min(
+          1,
+          `${field.label} is required`,
+        )
+      }
     } else {
       validator = z.string()
       if (field.ui.required) {
@@ -36,11 +45,6 @@ const schema = computed(() => {
       } else {
         validator = (validator as z.ZodString).optional()
       }
-    }
-
-    if (field.ui.type === 'number') {
-      // If we had number types, we'd handle them here
-      // validator = z.number()
     }
 
     s[field.key] = validator
@@ -111,10 +115,15 @@ function onSubmit() {
               type="password"
               :placeholder="$t(field.ui.placeholder || '')"
             />
+            <WizardInput
+              v-else-if="field.ui.type === 'number'"
+              v-model.number="state[field.key]"
+              type="number"
+              :placeholder="$t(field.ui.placeholder || '')"
+            />
             <WizardCheckbox
               v-else-if="field.ui.type === 'toggle'"
               v-model="state[field.key]"
-              :label="$t(field.label || '')"
             />
             <WizardInput
               v-else

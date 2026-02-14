@@ -15,11 +15,41 @@ const {
   isFieldVisible,
 } = useWizardForm('app')
 
-const schema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  slogan: z.string().optional(),
-  author: z.string().optional(),
-  avatarUrl: z.string().url('Invalid URL').optional().or(z.literal('')),
+const schema = computed(() => {
+  const s: Record<string, any> = {}
+  fields.value.forEach((field) => {
+    if (!isFieldVisible(field)) return
+
+    let validator: z.ZodTypeAny
+
+    if (field.ui.type === 'number') {
+      // Handle number type fields properly
+      validator = z.coerce.number()
+      if (field.ui.required) {
+        validator = (validator as z.ZodNumber).min(
+          1,
+          `${field.label} is required`,
+        )
+      }
+    } else if (field.ui.type === 'url') {
+      const urlValidator = z.string().url('Invalid URL')
+      if (field.ui.required) {
+        validator = urlValidator.min(1, `${field.label} is required`)
+      } else {
+        validator = urlValidator.optional().or(z.literal(''))
+      }
+    } else {
+      const stringValidator = z.string()
+      if (field.ui.required) {
+        validator = stringValidator.min(1, `${field.label} is required`)
+      } else {
+        validator = stringValidator.optional()
+      }
+    }
+
+    s[field.key] = validator
+  })
+  return z.object(s)
 })
 
 function onSubmit() {
@@ -63,6 +93,13 @@ function onSubmit() {
           :help="$t(field.ui.help || '')"
         >
           <WizardInput
+            v-if="field.ui.type === 'number'"
+            v-model.number="state[field.key]"
+            type="number"
+            :placeholder="field.ui.placeholder"
+          />
+          <WizardInput
+            v-else
             v-model="state[field.key]"
             :type="field.ui.type === 'url' ? 'url' : 'text'"
             :placeholder="field.ui.placeholder"

@@ -20,14 +20,16 @@ const printImageError = ref(false)
 const loadingTimer = ref<NodeJS.Timeout | null>(null)
 
 const printImageUrl = computed(() => {
-  if (typeof window !== 'undefined') {
-    // Add timestamp to prevent caching issues
-    const timestamp = Date.now()
-    // Remove 'photos/' prefix from storageKey if it exists
+  if (typeof window !== 'undefined' && props.photo.storageKey) {
+    // 使用与普通图片相同的路径格式，但指向print子目录
+    // 移除可能的 'photos/' 前缀，然后添加到print路径
     const cleanStorageKey = props.photo.storageKey.startsWith('photos/') 
       ? props.photo.storageKey.substring(7) // 'photos/'.length = 7
       : props.photo.storageKey
-    return `${window.location.origin}/storage/print/${cleanStorageKey}`
+    
+    // 构造打印图片的路径：/storage/print/原始文件名
+    const fileName = cleanStorageKey.split('/').pop() || cleanStorageKey
+    return `${window.location.origin}/storage/print/${fileName}`
   }
   return ''
 })
